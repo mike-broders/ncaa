@@ -66,21 +66,36 @@ with tab1:
     if duplicate_seeds: is_valid = False
 
     if st.button("Submit My Draft Picks", disabled=not is_valid, type="primary"):
-        # Create row for Google Sheets
+        # Create a dictionary for the new entry
         new_entry = {"Contestant": user_name}
         for p in user_selections:
             new_entry[f"Slot_{p['Slot']}_Player"] = p['Player']
             new_entry[f"Slot_{p['Slot']}_Team"] = p['Team']
             new_entry[f"Slot_{p['Slot']}_Seed"] = p['Seed']
         
-        # Pull existing data and append
-        existing_data = conn.read(worksheet="Sheet1")
-        updated_df = pd.concat([existing_data, pd.DataFrame([new_entry])], ignore_index=True)
-        conn.update(worksheet="Sheet1", data=updated_df)
-        
-        st.success("Submitted to Google Sheets!")
-        st.balloons()
-
+        # --- IMPROVED APPEND LOGIC ---
+        try:
+            # 1. Read existing data
+            # Use ttl=0 to force a fresh read from Google (no caching)
+            existing_data = conn.read(worksheet="Sheet1", ttl=0)
+            
+            # 2. Filter out any completely empty rows that might confuse pandas
+            existing_data = existing_data.dropna(how="all")
+            
+            # 3. Create a DataFrame for the new row
+            new_row_df = pd.DataFrame([new_entry])
+            
+            # 4. Concatenate
+            updated_df = pd.concat([existing_data, new_row_df], ignore_index=True)
+            
+            # 5. Update the sheet
+            conn.update(worksheet="Sheet1", data=updated_df)
+            
+            st.success(f"Successfully submitted! Good luck, {user_name}!")
+            st.balloons()
+            
+        except Exception as e:
+            st.error(f"Error submitting to Google Sheets: {e}")
 with tab2:
     st.title("Current Standings")
     if os.path.exists(results_file):
