@@ -47,13 +47,13 @@ st.divider()
 user_selections = []
 chosen_seeds = []
 
-# Create a grid layout
-cols = st.columns(4) 
-for i in range(1, 9):
-    col_idx = (i-1) % 4
-    with cols[col_idx]:
+# Row 1: Players 1-4
+row1_cols = st.columns(4)
+for i in range(1, 5):
+    with row1_cols[i-1]:
         st.subheader(f"Player {i}")
         
+        # --- SELECTION LOGIC (SAME AS BEFORE) ---
         seed_options = sorted(seeds_df['Seed'].unique())
         selected_seed = st.selectbox(
             f"Select Seed for Slot {i}", 
@@ -78,13 +78,45 @@ for i in range(1, 9):
         )
         
         user_selections.append({
-            "Slot": i,
-            "Seed": selected_seed,
-            "Team": selected_team,
-            "Player": selected_player
+            "Slot": i, "Seed": selected_seed, "Team": selected_team, "Player": selected_player
         })
         st.write("---")
 
+# Row 2: Players 5-8
+row2_cols = st.columns(4)
+for i in range(5, 9):
+    with row2_cols[i-5]:
+        st.subheader(f"Player {i}")
+        
+        # --- SELECTION LOGIC (SAME AS BEFORE) ---
+        seed_options = sorted(seeds_df['Seed'].unique())
+        selected_seed = st.selectbox(
+            f"Select Seed for Slot {i}", 
+            options=seed_options, 
+            index=min(i-1, len(seed_options)-1), 
+            key=f"seed_slot_{i}"
+        )
+        chosen_seeds.append(selected_seed)
+        
+        teams_in_seed = sorted(seeds_df[seeds_df['Seed'] == selected_seed]['Team'].unique())
+        selected_team = st.selectbox(
+            f"Select Team (Seed {selected_seed})", 
+            options=teams_in_seed,
+            key=f"team_slot_{i}"
+        )
+        
+        players_in_team = sorted(rosters_df[rosters_df['Team'] == selected_team]['Player Name'].unique())
+        selected_player = st.selectbox(
+            f"Select Player from {selected_team}", 
+            options=players_in_team,
+            key=f"player_slot_{i}"
+        )
+        
+        user_selections.append({
+            "Slot": i, "Seed": selected_seed, "Team": selected_team, "Player": selected_player
+        })
+        st.write("---")
+        
 # --- SIDEBAR STATUS & VALIDATION ---
 st.sidebar.header("Draft Status")
 
