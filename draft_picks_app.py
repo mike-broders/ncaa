@@ -71,7 +71,7 @@ with tab1:
         is_valid = False
 
     if duplicate_seeds:
-        st.sidebar.error(f"❌ Duplicate Seeds detected: {duplicate_seeds}")
+        st.sidebar.error(f"❌ Duplicate Seeds detected")
         st.sidebar.info("Each of your 8 players must come from a different seed.")
         is_valid = False
     else:
