@@ -26,7 +26,7 @@ seeds_df, rosters_df = load_data()
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- APP TABS ---
-tab1, tab2 = st.tabs(["📝 Enter Draft Picks", "🏆 Leaderboard"])
+tab1, tab2, tab3 = st.tabs(["📝 Enter Draft Picks", "🏆 Leaderboard", "📊 Player Stats"])
 
 with tab1:
     col_header, col_reset = st.columns([5, 1])
@@ -118,3 +118,24 @@ with tab2:
             
     except Exception as e:
         st.info("The leaderboard is being initialized. Check back shortly!")
+
+with tab3:
+    st.title("📊 Individual Player Points")
+    st.markdown("Detailed breakdown of points scored by every player in the pool, organized by round.")
+    
+    try:
+        # Read the 'PlayerStats' tab from Google Sheets
+        stats_data = conn.read(worksheet="PlayerStats", ttl=0)
+        
+        if not stats_data.empty:
+            st.dataframe(
+                stats_data.sort_values(by="Total", ascending=False),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("Individual player stats will appear here once the games begin.")
+            
+    except Exception as e:
+        st.info("The player stats tab is being initialized. Check back shortly!")
+        
