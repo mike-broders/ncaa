@@ -36,6 +36,8 @@ with tab1:
         if st.button("🔄 Reset Form"):
             st.rerun()
 
+    st.markdown("### Rules: Select 8 players to maximize your point total. Each player must come from a unique Seed (1-16).")
+
     user_name = st.text_input("Enter Your Name / Team Name")
     
     user_selections = []
