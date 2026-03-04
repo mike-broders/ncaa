@@ -103,18 +103,22 @@ with tab2:
         df_leaderboard = conn.read(worksheet="Leaderboard", ttl=0)
         
         if not df_leaderboard.empty:
-            # 1. Grab timestamp from the header of the first column
-            st.info(f"🕒 {df_leaderboard.columns[0]}")
+            # 1. Grab timestamp from the header string
+            st.info(f"🕒 {str(df_leaderboard.columns[0])}")
             
-            # 2. Re-align headers (Row 0 is the actual header row)
+            # 2. Re-align headers 
             actual_data = df_leaderboard.copy()
             actual_data.columns = actual_data.iloc[0]
             actual_data = actual_data[1:].reset_index(drop=True)
             
-            # 3. FIX THE JSON ERROR: Convert numbers to standard Python types
-            # This turns 'int64' into regular numbers that Streamlit can serialize
-            for col in actual_data.columns:
-                actual_data[col] = pd.to_numeric(actual_data[col], errors='ignore')
+            # --- THE FIX: FORCE COLUMN NAMES & DATA TO WEB-SAFE TYPES ---
+            # Force column names to be strings (fixes the JSON error)
+            actual_data.columns = [str(c) for c in actual_data.columns]
+            
+            # Convert numeric columns to float/int, then convert everything to object
+            # to ensure no hidden int64 types remain
+            actual_data = actual_data.apply(pd.to_numeric, errors='ignore')
+            actual_data = actual_data.astype(object) 
 
             st.dataframe(actual_data, use_container_width=True, hide_index=True)
             
@@ -127,21 +131,23 @@ with tab3:
         df_stats = conn.read(worksheet="PlayerStats", ttl=0)
         
         if not df_stats.empty:
-            # 1. Grab timestamp
-            st.info(f"🕒 {df_stats.columns[0]}")
+            st.info(f"🕒 {str(df_stats.columns[0])}")
             
-            # 2. Re-align headers
             actual_stats = df_stats.copy()
             actual_stats.columns = actual_stats.iloc[0]
             actual_stats = actual_stats[1:].reset_index(drop=True)
             
-            # 3. FIX THE JSON ERROR: Convert numbers and handle Sorting
-            for col in actual_stats.columns:
-                actual_stats[col] = pd.to_numeric(actual_stats[col], errors='ignore')
+            # --- THE FIX: FORCE COLUMN NAMES & DATA TO WEB-SAFE TYPES ---
+            actual_stats.columns = [str(c) for c in actual_stats.columns]
+            
+            actual_stats = actual_stats.apply(pd.to_numeric, errors='ignore')
             
             if "Total" in actual_stats.columns:
                 actual_stats = actual_stats.sort_values(by="Total", ascending=False)
             
+            # Final conversion to standard objects for JSON safety
+            actual_stats = actual_stats.astype(object)
+
             st.dataframe(actual_stats, use_container_width=True, hide_index=True)
             
     except Exception as e:
