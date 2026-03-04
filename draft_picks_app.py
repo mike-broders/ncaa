@@ -124,10 +124,10 @@ with tab3:
     st.markdown("Detailed breakdown of points scored by every player in the pool, organized by round.")
     
     try:
-        # Read the 'PlayerStats' tab from Google Sheets
         stats_data = conn.read(worksheet="PlayerStats", ttl=0)
         
         if not stats_data.empty:
+            # We sort by 'Total' so the MVP players are at the top
             st.dataframe(
                 stats_data.sort_values(by="Total", ascending=False),
                 use_container_width=True,
@@ -135,7 +135,6 @@ with tab3:
             )
         else:
             st.info("Individual player stats will appear here once the games begin.")
-            
     except Exception as e:
-        st.info("The player stats tab is being initialized. Check back shortly!")
+        st.info("The player stats tab is being initialized...")
         
