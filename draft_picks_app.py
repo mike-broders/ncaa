@@ -32,7 +32,7 @@ tab1, tab2, tab3 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊
 
 # 1. Set your deadline (Year, Month, Day, Hour, Minute)
 # Example: March 19, 2026, at 11:00 AM Central
-deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
+deadline = datetime.datetime(2026, 3, 4, 11, 0, 0)
 
 # 2. Define Timezones (Ensures the server time matches your time)
 central = pytz.timezone('US/Central')
@@ -42,7 +42,7 @@ now = datetime.datetime.now(central)
 with tab1:
     if now > deadline:
         # --- THE LOCKDOWN MESSAGE ---
-        st.error("🔒 Player election is now CLOSED.")
+        st.error("🔒 Player selection is now CLOSED.")
         st.subheader("The tournament has tipped off!")
         st.write("Submissions are no longer being accepted. Head over to the **Leaderboard** tab to track the scores!")
         
@@ -51,7 +51,7 @@ with tab1:
     else:
         # --- THE ORIGINAL SELECTION FORM ---
         # (Put your current selection loop and submit button code here)
-        st.info(f"⏳ Draft is OPEN! Submissions close at {deadline.strftime('%I:%M %p on %m/%d/%Y')}")
+        st.info(f"⏳ Player selection is OPEN! Submissions close at {deadline.strftime('%I:%M %p on %m/%d/%Y')}")
         col_header, col_reset = st.columns([5, 1])
         with col_header:
             st.title("🏀 2026 NCAA Tournament Player Pool")
