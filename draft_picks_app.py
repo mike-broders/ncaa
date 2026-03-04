@@ -100,37 +100,52 @@ with tab1:
 with tab2:
     st.title("🏆 Current Standings")
     try:
-        # Read the sheet
-        raw_data = conn.read(worksheet="Leaderboard", ttl=0, header=None)
+        # 1. Read the sheet normally (letting it pick up the first row as headers)
+        # We use ttl=0 to ensure we aren't seeing old cached data
+        df_leaderboard = conn.read(worksheet="Leaderboard", ttl=0)
         
-        # Row 0 is our timestamp, Row 1 is our header
-        timestamp = raw_data.iloc[0, 0]
-        st.info(f"🕒 {timestamp}")
-        
-        # Create the actual table from the rest of the data
-        standings_df = raw_data.iloc[1:].copy()
-        standings_df.columns = standings_df.iloc[0] # Set the second row as header
-        standings_df = standings_df[1:] # Drop the header row from the data
-        
-        st.dataframe(standings_df, use_container_width=True, hide_index=True)
+        if not df_leaderboard.empty:
+            # 2. Extract the timestamp from the very first header name
+            # Because we put the timestamp in A1, it becomes the name of the first column
+            timestamp = df_leaderboard.columns[0]
+            st.info(f"🕒 {timestamp}")
+            
+            # 3. The actual data starts on the next row. 
+            # We fix the headers by making the second row the "real" header
+            actual_data = df_leaderboard.copy()
+            actual_data.columns = actual_data.iloc[0] # Set row 0 as header
+            actual_data = actual_data[1:]             # Remove that row from the data
+            
+            st.dataframe(actual_data, use_container_width=True, hide_index=True)
+        else:
+            st.info("Leaderboard is empty. Check back once games start!")
+            
     except Exception as e:
+        st.error(f"Error loading leaderboard: {e}") # This will show you the REAL error
         st.info("Leaderboard is initializing...")
 
 with tab3:
     st.title("📊 Individual Player Points")
     try:
-        raw_stats = conn.read(worksheet="PlayerStats", ttl=0, header=None)
+        df_stats = conn.read(worksheet="PlayerStats", ttl=0)
         
-        # Display timestamp
-        timestamp_stats = raw_stats.iloc[0, 0]
-        st.info(f"🕒 {timestamp_stats}")
-        
-        # Process the table
-        stats_df = raw_stats.iloc[1:].copy()
-        stats_df.columns = stats_df.iloc[0]
-        stats_df = stats_df[1:]
-        
-        st.dataframe(stats_df, use_container_width=True, hide_index=True)
+        if not df_stats.empty:
+            # Extract timestamp from the first header
+            timestamp_stats = df_stats.columns[0]
+            st.info(f"🕒 {timestamp_stats}")
+            
+            # Fix headers
+            actual_stats = df_stats.copy()
+            actual_stats.columns = actual_stats.iloc[0]
+            actual_stats = actual_stats[1:]
+            
+            # Sort by Total points descending
+            if "Total" in actual_stats.columns:
+                actual_stats["Total"] = pd.to_numeric(actual_stats["Total"], errors='coerce')
+                actual_stats = actual_stats.sort_values(by="Total", ascending=False)
+            
+            st.dataframe(actual_stats, use_container_width=True, hide_index=True)
     except Exception as e:
+        st.error(f"Error loading stats: {e}")
         st.info("Player stats are initializing...")
         
