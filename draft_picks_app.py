@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 import os
+import datetime
+import pytz
 
 # --- PATH SETUP ---
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,81 +30,102 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 # --- APP TABS ---
 tab1, tab2, tab3 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 Player Stats"])
 
+# 1. Set your deadline (Year, Month, Day, Hour, Minute)
+# Example: March 19, 2026, at 11:00 AM Central
+deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
+
+# 2. Define Timezones (Ensures the server time matches your time)
+central = pytz.timezone('US/Central')
+deadline = central.localize(deadline)
+now = datetime.datetime.now(central)
+
 with tab1:
-    col_header, col_reset = st.columns([5, 1])
-    with col_header:
-        st.title("🏀 2026 NCAA Tournament Player Pool")
-    with col_reset:
-        if st.button("🔄 Reset Form"):
-            st.rerun()
-
-    st.markdown("### Rules: Select 8 players to maximize your point total. Each player must come from a unique Seed (1-16).")
-
-    user_name = st.text_input("Enter Your Name / Team Name")
-    
-    user_selections = []
-    chosen_seeds = []
-
-    # Row-based layout to fix the 1-5-2-6 mobile bug
-    for row_range in [range(1, 5), range(5, 9)]:
-        cols = st.columns(4)
-        for i in row_range:
-            with cols[i - (row_range.start)]:
-                st.subheader(f"Player {i}")
-                selected_seed = st.selectbox(f"Seed", options=sorted(seeds_df['Seed'].unique()), index=i-1, key=f"s{i}")
-                chosen_seeds.append(selected_seed)
-                
-                teams = sorted(seeds_df[seeds_df['Seed'] == selected_seed]['Team'].unique())
-                selected_team = st.selectbox(f"Team", options=teams, key=f"t{i}")
-                
-                players = sorted(rosters_df[rosters_df['Team'] == selected_team]['Player Name'].unique())
-                selected_player = st.selectbox(f"Player", options=players, key=f"p{i}")
-                
-                user_selections.append({"Slot": i, "Seed": selected_seed, "Team": selected_team, "Player": selected_player})
-        st.divider()
-
-    # Validation
-    st.sidebar.header("Selection Status")
-    
-    # Check for Duplicate Seeds
-    duplicate_seeds = [seed for seed in set(chosen_seeds) if chosen_seeds.count(seed) > 1]
-    is_valid = True
-
-    if not user_name:
-        st.sidebar.warning("⚠️ Enter a Name to Submit")
-        is_valid = False
-
-    if duplicate_seeds:
-        st.sidebar.error(f"❌ Duplicate Seeds detected")
-        st.sidebar.info("Each of your 8 players must come from a different seed.")
-        is_valid = False
+    if now > deadline:
+        # --- THE LOCKDOWN MESSAGE ---
+        st.error("🔒 Player election is now CLOSED.")
+        st.subheader("The tournament has tipped off!")
+        st.write("Submissions are no longer being accepted. Head over to the **Leaderboard** tab to track the scores!")
+        
+        # Optional: You can display a "Wall of Fame" or just stop the code here
+        st.stop() # This prevents the rest of Tab 1 from rendering
     else:
-        st.sidebar.success("✅ Seeds are unique!")
+        # --- THE ORIGINAL SELECTION FORM ---
+        # (Put your current selection loop and submit button code here)
+        st.info(f"⏳ Draft is OPEN! Submissions close at {deadline.strftime('%I:%M %p on %m/%d/%Y')}")
+        col_header, col_reset = st.columns([5, 1])
+        with col_header:
+            st.title("🏀 2026 NCAA Tournament Player Pool")
+        with col_reset:
+            if st.button("🔄 Reset Form"):
+                st.rerun()
 
-    # THE SUBMIT BUTTON (Connected to Google Sheets)
-    if st.button("Submit My Player Picks", disabled=not is_valid, use_container_width=True, type="primary"):
-        with st.spinner("Submitting to Google Sheets..."):
-            try:
-                # 1. Prepare the data row
-                new_entry = {"Contestant": user_name}
-                for p in user_selections:
-                    new_entry[f"Slot_{p['Slot']}_Player"] = p['Player']
-                    new_entry[f"Slot_{p['Slot']}_Team"] = p['Team']
-                    new_entry[f"Slot_{p['Slot']}_Seed"] = p['Seed']
-                
-                # 2. Read existing data (ttl=0 ensures no caching issues)
-                existing_data = conn.read(worksheet="Sheet1", ttl=0)
-                existing_data = existing_data.dropna(how="all")
-                
-                # 3. Combine and Update
-                updated_df = pd.concat([existing_data, pd.DataFrame([new_entry])], ignore_index=True)
-                conn.update(worksheet="Sheet1", data=updated_df)
-                
-                st.success(f"🎉 Successfully submitted! Good luck, {user_name}!")
-                st.balloons()
-                
-            except Exception as e:
-                st.error(f"Error submitting to Google Sheets: {e}")
+        st.markdown("### Rules: Select 8 players to maximize your point total. Each player must come from a unique Seed (1-16).")
+
+        user_name = st.text_input("Enter Your Name / Team Name")
+        
+        user_selections = []
+        chosen_seeds = []
+
+        # Row-based layout to fix the 1-5-2-6 mobile bug
+        for row_range in [range(1, 5), range(5, 9)]:
+            cols = st.columns(4)
+            for i in row_range:
+                with cols[i - (row_range.start)]:
+                    st.subheader(f"Player {i}")
+                    selected_seed = st.selectbox(f"Seed", options=sorted(seeds_df['Seed'].unique()), index=i-1, key=f"s{i}")
+                    chosen_seeds.append(selected_seed)
+                    
+                    teams = sorted(seeds_df[seeds_df['Seed'] == selected_seed]['Team'].unique())
+                    selected_team = st.selectbox(f"Team", options=teams, key=f"t{i}")
+                    
+                    players = sorted(rosters_df[rosters_df['Team'] == selected_team]['Player Name'].unique())
+                    selected_player = st.selectbox(f"Player", options=players, key=f"p{i}")
+                    
+                    user_selections.append({"Slot": i, "Seed": selected_seed, "Team": selected_team, "Player": selected_player})
+            st.divider()
+
+        # Validation
+        st.sidebar.header("Selection Status")
+        
+        # Check for Duplicate Seeds
+        duplicate_seeds = [seed for seed in set(chosen_seeds) if chosen_seeds.count(seed) > 1]
+        is_valid = True
+
+        if not user_name:
+            st.sidebar.warning("⚠️ Enter a Name to Submit")
+            is_valid = False
+
+        if duplicate_seeds:
+            st.sidebar.error(f"❌ Duplicate Seeds detected")
+            st.sidebar.info("Each of your 8 players must come from a different seed.")
+            is_valid = False
+        else:
+            st.sidebar.success("✅ Seeds are unique!")
+
+        # THE SUBMIT BUTTON (Connected to Google Sheets)
+        if st.button("Submit My Player Picks", disabled=not is_valid, use_container_width=True, type="primary"):
+            with st.spinner("Submitting to Google Sheets..."):
+                try:
+                    # 1. Prepare the data row
+                    new_entry = {"Contestant": user_name}
+                    for p in user_selections:
+                        new_entry[f"Slot_{p['Slot']}_Player"] = p['Player']
+                        new_entry[f"Slot_{p['Slot']}_Team"] = p['Team']
+                        new_entry[f"Slot_{p['Slot']}_Seed"] = p['Seed']
+                    
+                    # 2. Read existing data (ttl=0 ensures no caching issues)
+                    existing_data = conn.read(worksheet="Sheet1", ttl=0)
+                    existing_data = existing_data.dropna(how="all")
+                    
+                    # 3. Combine and Update
+                    updated_df = pd.concat([existing_data, pd.DataFrame([new_entry])], ignore_index=True)
+                    conn.update(worksheet="Sheet1", data=updated_df)
+                    
+                    st.success(f"🎉 Successfully submitted! Good luck, {user_name}!")
+                    st.balloons()
+                    
+                except Exception as e:
+                    st.error(f"Error submitting to Google Sheets: {e}")
                 
 with tab2:
     st.title("🏆 Current Standings")
