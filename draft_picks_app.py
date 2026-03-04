@@ -96,12 +96,25 @@ with tab1:
             
         except Exception as e:
             st.error(f"Error submitting to Google Sheets: {e}")
+
 with tab2:
-    st.title("Current Standings")
-    if os.path.exists(results_file):
-        standings_df = pd.read_excel(results_file)
-        # Display the leaderboard sorted by Total points
-        if "Total" in standings_df.columns:
-            st.dataframe(standings_df.sort_values(by="Total", ascending=False), use_container_width=True)
-    else:
-        st.info("The tournament hasn't started yet! Standings will appear here once games are played.")
+    st.title("🏆 Current Standings")
+    
+    try:
+        # Read the 'Leaderboard' tab from Google Sheets
+        # ttl=0 ensures it doesn't show old data to users
+        standings_df = conn.read(worksheet="Leaderboard", ttl=0)
+        
+        if not standings_df.empty:
+            # Display a nice gold/silver/bronze highlight for the top 3
+            st.dataframe(
+                standings_df.sort_values(by="Total", ascending=False), 
+                use_container_width=True,
+                hide_index=True
+            )
+            st.caption("Standings update automatically as games are processed.")
+        else:
+            st.info("Scores will appear here once the tournament begins!")
+            
+    except Exception as e:
+        st.info("The leaderboard is being initialized. Check back shortly!")
