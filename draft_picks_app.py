@@ -100,29 +100,26 @@ with tab1:
 with tab2:
     st.title("🏆 Current Standings")
     try:
-        # 1. Read the sheet normally (letting it pick up the first row as headers)
-        # We use ttl=0 to ensure we aren't seeing old cached data
         df_leaderboard = conn.read(worksheet="Leaderboard", ttl=0)
         
         if not df_leaderboard.empty:
-            # 2. Extract the timestamp from the very first header name
-            # Because we put the timestamp in A1, it becomes the name of the first column
-            timestamp = df_leaderboard.columns[0]
-            st.info(f"🕒 {timestamp}")
+            # 1. Grab timestamp from the header of the first column
+            st.info(f"🕒 {df_leaderboard.columns[0]}")
             
-            # 3. The actual data starts on the next row. 
-            # We fix the headers by making the second row the "real" header
+            # 2. Re-align headers (Row 0 is the actual header row)
             actual_data = df_leaderboard.copy()
-            actual_data.columns = actual_data.iloc[0] # Set row 0 as header
-            actual_data = actual_data[1:]             # Remove that row from the data
+            actual_data.columns = actual_data.iloc[0]
+            actual_data = actual_data[1:].reset_index(drop=True)
             
+            # 3. FIX THE JSON ERROR: Convert numbers to standard Python types
+            # This turns 'int64' into regular numbers that Streamlit can serialize
+            for col in actual_data.columns:
+                actual_data[col] = pd.to_numeric(actual_data[col], errors='ignore')
+
             st.dataframe(actual_data, use_container_width=True, hide_index=True)
-        else:
-            st.info("Leaderboard is empty. Check back once games start!")
             
     except Exception as e:
-        st.error(f"Error loading leaderboard: {e}") # This will show you the REAL error
-        st.info("Leaderboard is initializing...")
+        st.error(f"Leaderboard Error: {e}")
 
 with tab3:
     st.title("📊 Individual Player Points")
@@ -130,22 +127,22 @@ with tab3:
         df_stats = conn.read(worksheet="PlayerStats", ttl=0)
         
         if not df_stats.empty:
-            # Extract timestamp from the first header
-            timestamp_stats = df_stats.columns[0]
-            st.info(f"🕒 {timestamp_stats}")
+            # 1. Grab timestamp
+            st.info(f"🕒 {df_stats.columns[0]}")
             
-            # Fix headers
+            # 2. Re-align headers
             actual_stats = df_stats.copy()
             actual_stats.columns = actual_stats.iloc[0]
-            actual_stats = actual_stats[1:]
+            actual_stats = actual_stats[1:].reset_index(drop=True)
             
-            # Sort by Total points descending
+            # 3. FIX THE JSON ERROR: Convert numbers and handle Sorting
+            for col in actual_stats.columns:
+                actual_stats[col] = pd.to_numeric(actual_stats[col], errors='ignore')
+            
             if "Total" in actual_stats.columns:
-                actual_stats["Total"] = pd.to_numeric(actual_stats["Total"], errors='coerce')
                 actual_stats = actual_stats.sort_values(by="Total", ascending=False)
             
             st.dataframe(actual_stats, use_container_width=True, hide_index=True)
+            
     except Exception as e:
-        st.error(f"Error loading stats: {e}")
-        st.info("Player stats are initializing...")
-        
+        st.error(f"Stats Error: {e}")
