@@ -10,7 +10,7 @@ rosters_file = os.path.join(script_dir, "team_rosters.xlsx")
 # This is the file you will upload to GitHub to show standings
 results_file = os.path.join(script_dir, "updated_picks_per_round.xlsx")
 
-st.set_page_config(page_title="NCAA Player Pool", page_icon="🏀", layout="wide")
+st.set_page_config(page_title="2026 NCAA Player Pool", page_icon="🏀", layout="wide")
 
 # --- DATA LOADING ---
 @st.cache_data
@@ -26,12 +26,12 @@ seeds_df, rosters_df = load_data()
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- APP TABS ---
-tab1, tab2, tab3 = st.tabs(["📝 Enter Draft Picks", "🏆 Leaderboard", "📊 Player Stats"])
+tab1, tab2, tab3 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 Player Stats"])
 
 with tab1:
     col_header, col_reset = st.columns([5, 1])
     with col_header:
-        st.title("Draft Your Team")
+        st.title("🏀 2026 NCAA Tournament Player Draft")
     with col_reset:
         if st.button("🔄 Reset Form"):
             st.rerun()
@@ -99,42 +99,38 @@ with tab1:
 
 with tab2:
     st.title("🏆 Current Standings")
-    
     try:
-        # Read the 'Leaderboard' tab from Google Sheets
-        # ttl=0 ensures it doesn't show old data to users
-        standings_df = conn.read(worksheet="Leaderboard", ttl=0)
+        # Read the sheet
+        raw_data = conn.read(worksheet="Leaderboard", ttl=0, header=None)
         
-        if not standings_df.empty:
-            # Display a nice gold/silver/bronze highlight for the top 3
-            st.dataframe(
-                standings_df.sort_values(by="Total", ascending=False), 
-                use_container_width=True,
-                hide_index=True
-            )
-            st.caption("Standings update automatically as games are processed.")
-        else:
-            st.info("Scores will appear here once the tournament begins!")
-            
+        # Row 0 is our timestamp, Row 1 is our header
+        timestamp = raw_data.iloc[0, 0]
+        st.info(f"🕒 {timestamp}")
+        
+        # Create the actual table from the rest of the data
+        standings_df = raw_data.iloc[1:].copy()
+        standings_df.columns = standings_df.iloc[0] # Set the second row as header
+        standings_df = standings_df[1:] # Drop the header row from the data
+        
+        st.dataframe(standings_df, use_container_width=True, hide_index=True)
     except Exception as e:
-        st.info("The leaderboard is being initialized. Check back shortly!")
+        st.info("Leaderboard is initializing...")
 
 with tab3:
     st.title("📊 Individual Player Points")
-    st.markdown("Detailed breakdown of points scored by every player in the pool, organized by round.")
-    
     try:
-        stats_data = conn.read(worksheet="PlayerStats", ttl=0)
+        raw_stats = conn.read(worksheet="PlayerStats", ttl=0, header=None)
         
-        if not stats_data.empty:
-            # We sort by 'Total' so the MVP players are at the top
-            st.dataframe(
-                stats_data.sort_values(by="Total", ascending=False),
-                use_container_width=True,
-                hide_index=True
-            )
-        else:
-            st.info("Individual player stats will appear here once the games begin.")
+        # Display timestamp
+        timestamp_stats = raw_stats.iloc[0, 0]
+        st.info(f"🕒 {timestamp_stats}")
+        
+        # Process the table
+        stats_df = raw_stats.iloc[1:].copy()
+        stats_df.columns = stats_df.iloc[0]
+        stats_df = stats_df[1:]
+        
+        st.dataframe(stats_df, use_container_width=True, hide_index=True)
     except Exception as e:
-        st.info("The player stats tab is being initialized...")
+        st.info("Player stats are initializing...")
         
