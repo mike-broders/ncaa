@@ -32,7 +32,7 @@ tab1, tab2, tab3 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊
 
 # 1. Set your deadline (Year, Month, Day, Hour, Minute)
 # Example: March 19, 2026, at 11:00 AM Central
-deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
+deadline = datetime.datetime(2026, 3, 4, 11, 0, 0)
 
 # 2. Define Timezones (Ensures the server time matches your time)
 central = pytz.timezone('US/Central')
@@ -46,8 +46,6 @@ with tab1:
         st.subheader("The tournament has tipped off!")
         st.write("Submissions are no longer being accepted. Head over to the **Leaderboard** tab to track the scores!")
         
-        # Optional: You can display a "Wall of Fame" or just stop the code here
-        st.stop() # This prevents the rest of Tab 1 from rendering
     else:
         # --- THE ORIGINAL SELECTION FORM ---
         # (Put your current selection loop and submit button code here)
