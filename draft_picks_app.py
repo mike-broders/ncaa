@@ -31,7 +31,7 @@ tab1, tab2, tab3 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊
 with tab1:
     col_header, col_reset = st.columns([5, 1])
     with col_header:
-        st.title("🏀 2026 NCAA Tournament Player Draft")
+        st.title("🏀 2026 NCAA Tournament Player Pool")
     with col_reset:
         if st.button("🔄 Reset Form"):
             st.rerun()
@@ -60,43 +60,48 @@ with tab1:
         st.divider()
 
     # Validation
-    duplicate_seeds = [s for s in set(chosen_seeds) if chosen_seeds.count(s) > 1]
+    st.sidebar.header("Selection Status")
+    
+    # Check for Duplicate Seeds
+    duplicate_seeds = [seed for seed in set(chosen_seeds) if chosen_seeds.count(seed) > 1]
     is_valid = True
-    if not user_name: is_valid = False
-    if duplicate_seeds: is_valid = False
 
-    if st.button("Submit My Draft Picks", disabled=not is_valid, type="primary"):
-        # Create a dictionary for the new entry
-        new_entry = {"Contestant": user_name}
-        for p in user_selections:
-            new_entry[f"Slot_{p['Slot']}_Player"] = p['Player']
-            new_entry[f"Slot_{p['Slot']}_Team"] = p['Team']
-            new_entry[f"Slot_{p['Slot']}_Seed"] = p['Seed']
-        
-        # --- IMPROVED APPEND LOGIC ---
-        try:
-            # 1. Read existing data
-            # Use ttl=0 to force a fresh read from Google (no caching)
-            existing_data = conn.read(worksheet="Sheet1", ttl=0)
-            
-            # 2. Filter out any completely empty rows that might confuse pandas
-            existing_data = existing_data.dropna(how="all")
-            
-            # 3. Create a DataFrame for the new row
-            new_row_df = pd.DataFrame([new_entry])
-            
-            # 4. Concatenate
-            updated_df = pd.concat([existing_data, new_row_df], ignore_index=True)
-            
-            # 5. Update the sheet
-            conn.update(worksheet="Sheet1", data=updated_df)
-            
-            st.success(f"Successfully submitted! Good luck, {user_name}!")
-            st.balloons()
-            
-        except Exception as e:
-            st.error(f"Error submitting to Google Sheets: {e}")
+    if not user_name:
+        st.sidebar.warning("⚠️ Enter a Name to Submit")
+        is_valid = False
 
+    if duplicate_seeds:
+        st.sidebar.error(f"❌ Duplicate Seeds detected: {duplicate_seeds}")
+        st.sidebar.info("Each of your 8 players must come from a different seed.")
+        is_valid = False
+    else:
+        st.sidebar.success("✅ Seeds are unique!")
+
+    # THE SUBMIT BUTTON (Connected to Google Sheets)
+    if st.button("Submit My Player Picks", disabled=not is_valid, use_container_width=True, type="primary"):
+        with st.spinner("Submitting to Google Sheets..."):
+            try:
+                # 1. Prepare the data row
+                new_entry = {"Contestant": user_name}
+                for p in user_selections:
+                    new_entry[f"Slot_{p['Slot']}_Player"] = p['Player']
+                    new_entry[f"Slot_{p['Slot']}_Team"] = p['Team']
+                    new_entry[f"Slot_{p['Slot']}_Seed"] = p['Seed']
+                
+                # 2. Read existing data (ttl=0 ensures no caching issues)
+                existing_data = conn.read(worksheet="Sheet1", ttl=0)
+                existing_data = existing_data.dropna(how="all")
+                
+                # 3. Combine and Update
+                updated_df = pd.concat([existing_data, pd.DataFrame([new_entry])], ignore_index=True)
+                conn.update(worksheet="Sheet1", data=updated_df)
+                
+                st.success(f"🎉 Successfully submitted! Good luck, {user_name}!")
+                st.balloons()
+                
+            except Exception as e:
+                st.error(f"Error submitting to Google Sheets: {e}")
+                
 with tab2:
     st.title("🏆 Current Standings")
     try:
