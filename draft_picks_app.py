@@ -52,7 +52,7 @@ with tab1:
         st.info(f"⏳ Player selection is OPEN! Submissions close at {deadline.strftime('%I:%M %p on %m/%d/%Y')}")
         col_header, col_reset = st.columns([5, 1])
         with col_header:
-            st.title("🏀 2026 NCAA Tournament Player Pool")
+            st.title("🏀 2026 NCAA Men's Tournament Player Pool")
         with col_reset:
             if st.button("🔄 Reset Form"):
                 st.rerun()
