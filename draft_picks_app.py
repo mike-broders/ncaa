@@ -65,6 +65,8 @@ with tab1:
         * The person with the highest point total at the conclusion of the tournament wins.
         """)
 
+        st.link_button("Go to Women's Tournament Pool 🏀", "https://teletraan1.com/ncaawbbplayerpool/")
+
         user_name = st.text_input("Enter Your Name / Team Name")
         
         user_selections = []
