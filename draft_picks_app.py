@@ -9,23 +9,46 @@ import pytz
 script_dir = os.path.dirname(os.path.abspath(__file__))
 seeds_file = os.path.join(script_dir, "team_seeds.csv")
 rosters_file = os.path.join(script_dir, "team_rosters.xlsx")
-# This is the file you will upload to GitHub to show standings
-results_file = os.path.join(script_dir, "updated_picks_per_round.xlsx")
 
-st.set_page_config(page_title="2026 NCAA Player Pool", page_icon="🏀", layout="wide")
+st.set_page_config(page_title="2026 NCAA Men's Player Pool", page_icon="🏀", layout="wide")
 
 # --- DATA LOADING ---
-@st.cache_data
-def load_data():
+@st.cache_data(ttl=120)  # Refresh every 2 mins
+def load_all_app_data():
+    # 1. Local Files
     seeds_df = pd.read_csv(seeds_file)
     seeds_df['Seed'] = seeds_df['Seed'].astype(int)
     rosters_df = pd.read_excel(rosters_file)
-    return seeds_df, rosters_df
+    
+    # 2. Google Sheets via st.connection
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    
+    try:
+        # Load Picks (Sheet1)
+        picks_df = conn.read(worksheet="Sheet1", ttl=0)
+        picks_df.columns = picks_df.columns.str.strip()
+        
+        # Load Leaderboard
+        # Note: If your Leaderboard has a timestamp in Row 1, 
+        # you might need to adjust the header row in your conn.read
+        leaderboard_df = conn.read(worksheet="Leaderboard", ttl=0)
+        leaderboard_df.columns = leaderboard_df.columns.str.strip()
 
-seeds_df, rosters_df = load_data()
+        # Load Player Stats
+        player_stats_df = conn.read(worksheet="PlayerStats", ttl=0)
+        player_stats_df.columns = player_stats_df.columns.str.strip()
+        
+    except Exception as e:
+        st.error(f"Error reading Google Sheets: {e}")
+        picks_df = pd.DataFrame()
+        leaderboard_df = pd.DataFrame()
+        player_stats_df = pd.DataFrame()
 
-# --- GOOGLE SHEETS CONNECTION ---
-conn = st.connection("gsheets", type=GSheetsConnection)
+    return seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df
+
+# --- EXECUTE LOADING ---
+# Unpack all 5 dataframes
+seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df = load_all_app_data()
 
 # --- APP TABS ---
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 Player Stats", "📊 View Submissions & Stats"])
