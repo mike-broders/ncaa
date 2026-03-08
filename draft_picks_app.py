@@ -28,7 +28,7 @@ seeds_df, rosters_df = load_data()
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- APP TABS ---
-tab1, tab2, tab3 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 Player Stats"])
+tab1, tab2, tab3, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 Player Stats", "📊 View Submissions & Stats])
 
 # 1. Set your deadline (Year, Month, Day, Hour, Minute)
 # Example: March 19, 2026, at 11:00 AM Central
@@ -188,3 +188,82 @@ with tab3:
             
     except Exception as e:
         st.error(f"Stats Error: {e}")
+
+with tab4:
+    st.title("📝 Men's Rosters & Live Stats")
+    
+    # Men's Tournament Tip-off for 2026
+    # MENS_DEADLINE = datetime.datetime(2026, 3, 19, 12, 0)
+    # now = datetime.datetime.now()
+
+    if now < deadline:
+        st.info(f"🔒 Roster stats are hidden until the tournament begins ({deadline.strftime('%I:%M %p on %m/%d')}).")
+    else:
+        # Check for 'Contestant' for the Men's sheet
+        if not picks_df.empty and 'Contestant' in picks_df.columns:
+            contestants = [c for c in picks_df['Contestant'].unique() if str(c).strip() != ""]
+            
+            # Note the unique 'key' for the Men's widget
+            selected_user = st.selectbox("Select a Contestant:", ["All"] + contestants, key="mens_roster_select")
+            display_list = contestants if selected_user == "All" else [selected_user]
+
+            stat_columns = ['1st Round', '2nd Round', 'Sweet 16', 'Elite 8', 'Final Four', "Nat'l Champ", 'Total']
+
+            for user in display_list:
+                with st.expander(f"👤 {user}'s Live Roster", expanded=(selected_user != "All")):
+                    user_row = picks_df[picks_df['Contestant'] == user].iloc[0]
+                    user_players = []
+                    
+                    for i in range(1, 9):
+                        p_name = user_row.get(f"Slot_{i}_Player")
+                        
+                        if p_name and str(p_name).strip() != "":
+                            player_entry = {
+                                "Player": p_name,
+                                "Team": user_row.get(f"Slot_{i}_Team", "N/A"),
+                                "Seed": user_row.get(f"Slot_{i}_Seed", "-")
+                            }
+
+                            if not player_stats_df.empty:
+                                # Standard name used in your PlayerStats sheet
+                                p_stats = player_stats_df[player_stats_df['Player Name'] == p_name]
+                                
+                                for col in stat_columns:
+                                    if not p_stats.empty and col in p_stats.columns:
+                                        val = p_stats.iloc[0][col]
+                                        player_entry[col] = pd.to_numeric(val, errors='coerce') or 0
+                                    else:
+                                        player_entry[col] = 0
+                            
+                            user_players.append(player_entry)
+                    
+                    if user_players:
+                        df_display = pd.DataFrame(user_players)
+                        
+                        # Summary row logic
+                        summary_data = {"Player": "**ROSTER TOTALS**", "Team": "", "Seed": ""}
+                        for col in stat_columns:
+                            summary_data[col] = df_display[col].sum() if col in df_display.columns else 0
+                        
+                        df_with_total = pd.concat([df_display, pd.DataFrame([summary_data])], ignore_index=True)
+
+                        # Highlight styling
+                        def style_roster(styler):
+                            if 'Total' in df_with_total.columns:
+                                styler.background_gradient(subset=['Total'], cmap='YlGn')
+                            styler.apply(lambda x: ['font-weight: bold' if x.name == len(df_with_total)-1 else '' for i in x], axis=1)
+                            return styler
+
+                        # Filter for only active rounds
+                        active_stats = [c for c in stat_columns if c in df_with_total.columns]
+                        final_cols = ["Player", "Team", "Seed"] + active_stats
+                        
+                        st.dataframe(
+                            df_with_total[final_cols].style.pipe(style_roster), 
+                            use_container_width=True, 
+                            hide_index=True
+                        )
+                    else:
+                        st.write("No picks recorded for this contestant.")
+        else:
+            st.warning("No submission data found. Ensure the 'Contestant' column exists in your Men's Google Sheet.")
