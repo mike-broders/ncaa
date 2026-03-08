@@ -91,6 +91,22 @@ def style_leaderboard(df):
 # Execute the load
 seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df = load_all_app_data()
 
+# --- GLOBAL SIDEBAR ---
+with st.sidebar:
+    st.header("⚙️ App Controls")
+    
+    # Simple Refresh Button
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+    
+    st.divider() # Adds a nice visual line
+    
+    # Optional: Display the last time data was updated
+    # (Only works if you're not using 'now' for the tournament deadline)
+    import datetime
+    st.caption(f"Last checked: {datetime.datetime.now().strftime('%I:%M:%S %p')}")
+
 # --- APP TABS ---
 tab1, tab2, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 View Submissions & Stats"])
 
