@@ -56,17 +56,50 @@ def load_all_app_data():
 
     return seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df
 
+# --- LEADERBOARD STYLING FUNCTION ---
+def style_leaderboard(df):
+    # Create a dataframe of empty styles
+    styles = pd.DataFrame('', index=df.index, columns=df.columns)
+    
+    # Check if we have the data needed for status checks
+    # We use global picks_df and player_stats_df loaded earlier
+    for i, row in df.iterrows():
+        contestant_name = str(row.get('Contestant', '')).strip()
+        
+        # 1. Get this user's picks from the master picks_df
+        user_picks = picks_df[picks_df['Contestant'] == contestant_name]
+        
+        if not user_picks.empty and not player_stats_df.empty:
+            # 2. Extract their 8 player names
+            p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip() for j in range(1, 9)]
+            
+            # 3. Check status of those players in player_stats_df
+            # We lowercase everything to be safe
+            user_player_stats = player_stats_df[player_stats_df['Player Name'].str.strip().isin(p_names)]
+            statuses = user_player_stats['Status'].str.lower().fillna('eliminated').tolist()
+            
+            # 4. Determine Contestant Color
+            # If they have ANY player left that is 'active' or 'advanced'
+            if any(s in ['active', 'advanced'] for s in statuses):
+                bg_color = 'rgba(0, 255, 0, 0.05)'  # Very faint green (Still Alive)
+            else:
+                bg_color = 'rgba(255, 0, 0, 0.1)'   # Soft red (Eliminated)
+            
+            styles.iloc[i, :] = f'background-color: {bg_color}'
+            
+    return styles
+
 # Execute the load
 seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df = load_all_app_data()
 
 # --- APP TABS ---
 tab1, tab2, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 View Submissions & Stats"])
 
-# 1. Set your deadline (Year, Month, Day, Hour, Minute)
+# Set your deadline (Year, Month, Day, Hour, Minute)
 # Example: March 19, 2026, at 11:00 AM Central
 deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
 
-# 2. Define Timezones (Ensures the server time matches your time)
+# Define Timezones (Ensures the server time matches your time)
 central = pytz.timezone('US/Central')
 deadline = central.localize(deadline)
 now = datetime.datetime.now(central)
@@ -168,32 +201,29 @@ with tab1:
 with tab2:
     st.title("🏆 Current Standings")
     try:
-        # 1. Read the sheet (ttl=0 ensures we see updates immediately on refresh)
+        # 1. Read the sheet
         df_leaderboard = conn.read(worksheet="Leaderboard", ttl=0)
         
         if not df_leaderboard.empty:
-            # 2. Extract timestamp from the very first header
+            # 2. Extract timestamp
             timestamp_str = str(df_leaderboard.columns[0])
             st.info(f"🕒 {timestamp_str}")
             
-            # 3. Fix Headers: Row 0 actually contains our "real" headers (Contestant, Total, etc.)
+            # 3. Fix Headers
             actual_data = df_leaderboard.copy()
-            actual_data.columns = actual_data.iloc[0]
+            actual_data.columns = [str(c).strip() for c in actual_data.iloc[0]]
             actual_data = actual_data[1:].reset_index(drop=True)
             
-            # 4. Clean Column Names (Force to string to avoid JSON errors)
-            actual_data.columns = [str(c).strip() for c in actual_data.columns]
-            
-            # 5. Data Type Cleanup (Convert numbers, then to object for Streamlit safety)
+            # 4. Data Type Cleanup
             actual_data = actual_data.apply(pd.to_numeric, errors='ignore')
             
-            # 6. Sorting (Optional: ensures leader is at the top)
+            # 5. Sorting
             if 'Total' in actual_data.columns:
                 actual_data = actual_data.sort_values(by='Total', ascending=False)
             
-            # 7. Final Display
+            # 6. Final Display with Auto-Styling
             st.dataframe(
-                actual_data.astype(object), 
+                actual_data.style.apply(style_leaderboard, axis=None), 
                 use_container_width=True, 
                 hide_index=True
             )
@@ -309,17 +339,39 @@ with tab4:
                         df_with_total = pd.concat([df_display, pd.DataFrame([summary_data])], ignore_index=True)
 
                         # Styling
-                        def style_roster(styler):
-                            if 'Total' in df_with_total.columns:
-                                styler.background_gradient(subset=['Total'], cmap='YlGn')
-                            styler.apply(lambda x: ['font-weight: bold' if x.name == len(df_with_total)-1 else '' for i in x], axis=1)
-                            return styler
+                        def style_roster(df):
+                            # Initialize a list of styles (empty strings by default)
+                            styles = pd.DataFrame('', index=df.index, columns=df.columns)
+                            
+                            # We only style if the 'Status' column exists
+                            if 'Status' in df.columns:
+                                for i, row in df.iterrows():
+                                    status = str(row['Status']).strip().lower()
+                                    
+                                    # Determine color based on status
+                                    if status == 'eliminated':
+                                        bg_color = 'rgba(255, 0, 0, 0.2)'  # Soft Red
+                                    elif status == 'active':
+                                        bg_color = 'rgba(0, 0, 255, 0.1)'  # Soft Blue
+                                    elif status == 'advanced':
+                                        bg_color = 'rgba(0, 255, 0, 0.2)'  # Soft Green
+                                    else:
+                                        bg_color = '' # No background for unknown status
+
+                                    if bg_color:
+                                        styles.iloc[i, :] = f'background-color: {bg_color}'
+                            
+                            # Always bold the final "TOTALS" row
+                            last_row_idx = len(df) - 1
+                            styles.iloc[last_row_idx, :] += '; font-weight: bold; border-top: 2px solid grey;'
+                            
+                            return styles
 
                         active_stats = [c for c in stat_columns if c in df_with_total.columns]
                         final_cols = ["Player", "Team", "Seed"] + active_stats
                         
                         st.dataframe(
-                            df_with_total[final_cols].style.pipe(style_roster), 
+                            df_with_total[final_cols].style.apply(style_roster, axis=None), 
                             use_container_width=True, 
                             hide_index=True
                         )
