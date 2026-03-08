@@ -214,6 +214,7 @@ with tab1:
                     st.error(f"Error submitting to Google Sheets: {e}")
                 
 with tab2:
+    st.info(f"Press Refresh Data button in the sidebar to the left to grab most current available data.")
     st.title("🏆 Current Standings")
     try:
         # 1. Read the sheet
@@ -275,6 +276,7 @@ with tab2:
 ##        st.error(f"Stats Error: {e}")
 
 with tab4:
+    st.info(f"Press Refresh Data button in the sidebar to the left to grab most current available data.")
     st.title("📝 Contestant Rosters & Live Stats")
     
     if now < deadline:
