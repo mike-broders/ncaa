@@ -60,31 +60,31 @@ def load_all_app_data():
 def style_leaderboard(df):
     styles = pd.DataFrame('', index=df.index, columns=df.columns)
     
-    # 1. Safety Check: Does PlayerStats have a Status column?
-    if player_stats_df.empty or 'Status' not in player_stats_df.columns:
-        return styles # Return no styling if column is missing
-
     for i, row in df.iterrows():
+        # Get the contestant name from this specific row
         contestant_name = str(row.get('Contestant', '')).strip()
+        
+        # Find the players this person picked
         user_picks = picks_df[picks_df['Contestant'] == contestant_name]
         
         if not user_picks.empty:
-            p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip() for j in range(1, 9)]
+            # Collect their 8 player names
+            p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
             
-            # Filter stats for these 8 players
-            user_player_stats = player_stats_df[player_stats_df['Player Name'].str.strip().isin(p_names)]
+            # Filter the stats sheet for ONLY those 8 players
+            user_stats = player_stats_df[player_stats_df['Player Name'].str.strip().str.lower().isin(p_names)]
             
-            # 2. Safety Check: Did we find any players?
-            if not user_player_stats.empty:
-                statuses = user_player_stats['Status'].str.lower().fillna('eliminated').tolist()
+            if not user_stats.empty and 'Status' in user_stats.columns:
+                statuses = user_stats['Status'].str.lower().fillna('eliminated').tolist()
                 
-                # Logic: If any player is active/advanced, they are still in it
+                # Check if this specific contestant has anyone still playing
                 if any(s in ['active', 'advanced'] for s in statuses):
-                    bg_color = 'rgba(0, 255, 0, 0.05)' # Green
+                    bg = 'rgba(0, 255, 0, 0.05)' # Faint Green
                 else:
-                    bg_color = 'rgba(255, 0, 0, 0.1)'  # Red
+                    bg = 'rgba(255, 0, 0, 0.08)'  # Faint Red
                 
-                styles.iloc[i, :] = f'background-color: {bg_color}'
+                styles.iloc[i, :] = f'background-color: {bg}'
+                
     return styles
 
 # Execute the load
@@ -354,9 +354,13 @@ with tab4:
                         final_cols = ["Player", "Team", "Seed"] + active_stats
                         
                         st.dataframe(
-                            df_with_total[final_cols].style.apply(style_roster, axis=None), 
+                            df_with_total.style.apply(style_roster, axis=None), 
                             use_container_width=True, 
-                            hide_index=True
+                            hide_index=True,
+                            # 2. Use column_config to hide 'Status' and 'id' if necessary
+                            column_config={
+                                "Status": None,  # This hides the column from the user's view
+                            }
                         )
                     else:
                         st.write("No picks recorded.")
