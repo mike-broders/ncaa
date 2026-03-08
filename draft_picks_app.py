@@ -287,30 +287,27 @@ with tab4:
                             except:
                                 clean_seed = "-"
 
-                            # Initial entry - include a default Status
+                            # Default entry
                             player_entry = {
                                 "Player": display_name,
                                 "Team": user_row.get(f"Slot_{i}_Team", "N/A"),
                                 "Seed": clean_seed,
-                                "Status": "active"  # Default
+                                "Status": "active" 
                             }
 
+                            # Lookup logic
                             if not player_stats_df.empty and 'Player Name' in player_stats_df.columns:
                                 search_name = display_name.lower().strip()
                                 match_mask = player_stats_df['Player Name'].astype(str).str.lower().str.strip() == search_name
                                 p_stats = player_stats_df[match_mask]
                                 
                                 if not p_stats.empty:
-                                    # --- NEW: Grab Status from PlayerStats Sheet ---
                                     if 'Status' in p_stats.columns:
                                         player_entry["Status"] = str(p_stats.iloc[0]['Status']).strip().lower()
                                     
                                     for col in stat_columns:
-                                        if col in p_stats.columns:
-                                            val = p_stats.iloc[0][col]
-                                            player_entry[col] = pd.to_numeric(val, errors='coerce') or 0
-                                        else:
-                                            player_entry[col] = 0
+                                        val = p_stats.iloc[0][col] if col in p_stats.columns else 0
+                                        player_entry[col] = pd.to_numeric(val, errors='coerce') or 0
                                 else:
                                     for col in stat_columns: player_entry[col] = 0
                             else:
@@ -318,54 +315,49 @@ with tab4:
                             
                             user_players.append(player_entry)
                     
-                if user_players:
-                    df_display = pd.DataFrame(user_players)
-                    
-                    # Create the Summary Row
-                    summary_data = {"Player": "**ROSTER TOTALS**", "Team": "", "Seed": "", "Status": ""}
-                    for col in stat_columns:
-                        summary_data[col] = df_display[col].sum()
-                    
-                    df_with_total = pd.concat([df_display, pd.DataFrame([summary_data])], ignore_index=True)
-
-                    # REVISED STYLING FUNCTION
-                    def style_roster_rows(df):
-                        # Create an empty dataframe for styles
-                        styles = pd.DataFrame('', index=df.index, columns=df.columns)
+                    if user_players:
+                        df_display = pd.DataFrame(user_players)
                         
-                        for i, row in df.iterrows():
-                            # Don't style the "TOTALS" row
-                            if i == len(df) - 1:
-                                styles.iloc[i, :] = 'font-weight: bold; border-top: 2px solid #555;'
-                                continue
-                            
-                            # Get status (force lowercase for safety)
-                            status = str(row.get('Status', 'active')).strip().lower()
-                            
-                            if status == 'advanced':
-                                bg = 'rgba(0, 255, 0, 0.2)'  # Green
-                            elif status == 'active':
-                                bg = 'rgba(0, 0, 255, 0.1)'  # Blue
-                            elif status == 'eliminated':
-                                bg = 'rgba(255, 0, 0, 0.2)'  # Red
-                            else:
-                                bg = ''
-                            
-                            if bg:
-                                styles.iloc[i, :] = f'background-color: {bg}'
-                        return styles
+                        # Summary Row
+                        summary_data = {"Player": "**ROSTER TOTALS**", "Team": "", "Seed": "", "Status": ""}
+                        for col in stat_columns:
+                            summary_data[col] = df_display[col].sum()
+                        
+                        df_with_total = pd.concat([df_display, pd.DataFrame([summary_data])], ignore_index=True)
 
-                    # THE DISPLAY
-                    st.dataframe(
-                        df_with_total.style.apply(style_roster_rows, axis=None),
-                        use_container_width=True,
-                        hide_index=True,
-                        column_config={
-                            "Status": None  # This keeps it in the data for styling, but hides it from view
-                        }
-                    )
+                        # Styling function defined locally
+                        def style_roster_internal(df):
+                            styles = pd.DataFrame('', index=df.index, columns=df.columns)
+                            for idx, row in df.iterrows():
+                                # Style the "TOTALS" row differently
+                                if idx == len(df) - 1:
+                                    styles.iloc[idx, :] = 'font-weight: bold; border-top: 2px solid #888;'
+                                    continue
+                                
+                                status = str(row.get('Status', '')).lower()
+                                if 'eliminated' in status:
+                                    bg = 'rgba(255, 0, 0, 0.15)'
+                                elif 'advanced' in status:
+                                    bg = 'rgba(0, 255, 0, 0.15)'
+                                elif 'active' in status:
+                                    bg = 'rgba(0, 0, 255, 0.08)'
+                                else:
+                                    bg = ''
+                                
+                                if bg:
+                                    styles.iloc[idx, :] = f'background-color: {bg}'
+                            return styles
+
+                        # DISPLAY: Keep 'Status' in the dataframe but hide it from the UI
+                        st.dataframe(
+                            df_with_total.style.apply(style_roster_internal, axis=None),
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                "Status": None # THIS IS THE KEY: Hides column but leaves data for styling
+                            }
+                        )
                     else:
                         st.write("No picks recorded.")
         else:
-            st.warning("Could not find the 'Contestant' column. Please check the headers.")
-            
+            st.warning("Could not find the 'Contestant' column.")
