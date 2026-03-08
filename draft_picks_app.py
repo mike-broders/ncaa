@@ -60,31 +60,32 @@ def load_all_app_data():
 def style_leaderboard(df):
     styles = pd.DataFrame('', index=df.index, columns=df.columns)
     
+    # Pre-clean the Player Stats names for faster matching
+    stats_names = player_stats_df['Player Name'].str.strip().str.lower().tolist()
+    stats_statuses = player_stats_df['Status'].str.strip().str.lower().tolist()
+    status_map = dict(zip(stats_names, stats_statuses))
+
     for i, row in df.iterrows():
-        # Get the contestant name from this specific row
         contestant_name = str(row.get('Contestant', '')).strip()
-        
-        # Find the players this person picked
         user_picks = picks_df[picks_df['Contestant'] == contestant_name]
         
         if not user_picks.empty:
-            # Collect their 8 player names
+            # Get the 8 player names for THIS contestant
             p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
             
-            # Filter the stats sheet for ONLY those 8 players
-            user_stats = player_stats_df[player_stats_df['Player Name'].str.strip().str.lower().isin(p_names)]
+            # Check the status for these 8 specific players
+            user_player_statuses = [status_map.get(name, 'eliminated') for name in p_names if name]
             
-            if not user_stats.empty and 'Status' in user_stats.columns:
-                statuses = user_stats['Status'].str.lower().fillna('eliminated').tolist()
-                
-                # Check if this specific contestant has anyone still playing
-                if any(s in ['active', 'advanced'] for s in statuses):
-                    bg = 'rgba(0, 255, 0, 0.05)' # Faint Green
-                else:
-                    bg = 'rgba(255, 0, 0, 0.08)'  # Faint Red
-                
-                styles.iloc[i, :] = f'background-color: {bg}'
-                
+            # If ANY player is active or advanced, the contestant is still "alive"
+            is_alive = any(s in ['active', 'advanced'] for s in user_player_statuses)
+            
+            if is_alive:
+                bg = 'rgba(0, 255, 0, 0.05)' # Green
+            else:
+                bg = 'rgba(255, 0, 0, 0.08)'  # Red
+            
+            styles.iloc[i, :] = f'background-color: {bg}'
+            
     return styles
 
 # Execute the load
@@ -317,51 +318,52 @@ with tab4:
                             
                             user_players.append(player_entry)
                     
-                    if user_players:
-                        df_display = pd.DataFrame(user_players)
-                        
-                        # Summary Row
-                        summary_data = {"Player": "**ROSTER TOTALS**", "Team": "", "Seed": "", "Status": ""}
-                        for col in stat_columns:
-                            summary_data[col] = df_display[col].sum()
-                        
-                        df_with_total = pd.concat([df_display, pd.DataFrame([summary_data])], ignore_index=True)
+                if user_players:
+                    df_display = pd.DataFrame(user_players)
+                    
+                    # Create the Summary Row
+                    summary_data = {"Player": "**ROSTER TOTALS**", "Team": "", "Seed": "", "Status": ""}
+                    for col in stat_columns:
+                        summary_data[col] = df_display[col].sum()
+                    
+                    df_with_total = pd.concat([df_display, pd.DataFrame([summary_data])], ignore_index=True)
 
-                        # Styling function
-                        def style_roster(df):
-                            styles = pd.DataFrame('', index=df.index, columns=df.columns)
-                            if 'Status' in df.columns:
-                                for i, row in df.iterrows():
-                                    status = str(row['Status']).strip().lower()
-                                    if status == 'eliminated':
-                                        bg_color = 'rgba(255, 0, 0, 0.2)'  # Red
-                                    elif status == 'active':
-                                        bg_color = 'rgba(0, 0, 255, 0.1)'  # Blue
-                                    elif status == 'advanced':
-                                        bg_color = 'rgba(0, 255, 0, 0.2)'  # Green
-                                    else:
-                                        bg_color = ''
-
-                                    if bg_color:
-                                        styles.iloc[i, :] = f'background-color: {bg_color}'
+                    # REVISED STYLING FUNCTION
+                    def style_roster_rows(df):
+                        # Create an empty dataframe for styles
+                        styles = pd.DataFrame('', index=df.index, columns=df.columns)
+                        
+                        for i, row in df.iterrows():
+                            # Don't style the "TOTALS" row
+                            if i == len(df) - 1:
+                                styles.iloc[i, :] = 'font-weight: bold; border-top: 2px solid #555;'
+                                continue
                             
-                            last_row_idx = len(df) - 1
-                            styles.iloc[last_row_idx, :] += '; font-weight: bold; border-top: 2px solid grey;'
-                            return styles
+                            # Get status (force lowercase for safety)
+                            status = str(row.get('Status', 'active')).strip().lower()
+                            
+                            if status == 'advanced':
+                                bg = 'rgba(0, 255, 0, 0.2)'  # Green
+                            elif status == 'active':
+                                bg = 'rgba(0, 0, 255, 0.1)'  # Blue
+                            elif status == 'eliminated':
+                                bg = 'rgba(255, 0, 0, 0.2)'  # Red
+                            else:
+                                bg = ''
+                            
+                            if bg:
+                                styles.iloc[i, :] = f'background-color: {bg}'
+                        return styles
 
-                        # Define columns to show (Status is used for color but hidden from table)
-                        active_stats = [c for c in stat_columns if c in df_with_total.columns]
-                        final_cols = ["Player", "Team", "Seed"] + active_stats
-                        
-                        st.dataframe(
-                            df_with_total.style.apply(style_roster, axis=None), 
-                            use_container_width=True, 
-                            hide_index=True,
-                            # 2. Use column_config to hide 'Status' and 'id' if necessary
-                            column_config={
-                                "Status": None,  # This hides the column from the user's view
-                            }
-                        )
+                    # THE DISPLAY
+                    st.dataframe(
+                        df_with_total.style.apply(style_roster_rows, axis=None),
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "Status": None  # This keeps it in the data for styling, but hides it from view
+                        }
+                    )
                     else:
                         st.write("No picks recorded.")
         else:
