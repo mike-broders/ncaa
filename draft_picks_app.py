@@ -24,18 +24,30 @@ def load_all_app_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     
     try:
-        # Load Picks
+        # 1. Load Picks (Sheet1 usually starts at Row 1, no shift needed)
         picks_df = conn.read(worksheet="Sheet1", ttl=0)
-        picks_df.columns = picks_df.columns.str.strip()
+        picks_df.columns = [str(c).strip() for c in picks_df.columns]
         
-        # Load Leaderboard
-        leaderboard_df = conn.read(worksheet="Leaderboard", ttl=0)
-        leaderboard_df.columns = leaderboard_df.columns.str.strip()
+        # 2. Load Leaderboard (Shift headers due to timestamp in Row 1)
+        lb_raw = conn.read(worksheet="Leaderboard", ttl=0)
+        if not lb_raw.empty:
+            leaderboard_df = lb_raw.copy()
+            leaderboard_df.columns = [str(c).strip() for c in leaderboard_df.iloc[0]]
+            leaderboard_df = leaderboard_df[1:].reset_index(drop=True)
+        else:
+            leaderboard_df = pd.DataFrame()
 
-        # Load Player Stats
-        player_stats_df = conn.read(worksheet="PlayerStats", ttl=0)
-        player_stats_df.columns = player_stats_df.columns.str.strip()
-        
+        # 3. Load Player Stats (Shift headers due to timestamp in Row 1)
+        ps_raw = conn.read(worksheet="PlayerStats", ttl=0)
+        if not ps_raw.empty:
+            player_stats_df = ps_raw.copy()
+            # Set headers to the values found in the second row (index 0 of the dataframe)
+            player_stats_df.columns = [str(c).strip() for c in player_stats_df.iloc[0]]
+            # Drop the header row from the data and reset index
+            player_stats_df = player_stats_df[1:].reset_index(drop=True)
+        else:
+            player_stats_df = pd.DataFrame()
+            
     except Exception as e:
         st.error(f"Error reading Google Sheets: {e}")
         picks_df = pd.DataFrame()
