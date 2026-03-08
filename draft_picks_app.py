@@ -244,24 +244,35 @@ with tab4:
                         p_name = user_row.get(f"Slot_{i}_Player")
                         
                         if p_name and str(p_name).strip() != "":
+                            # Clean the name for lookup
+                            clean_p_name = str(p_name).strip()
+                            
+                            # Clean the seed (force to int then string to remove .000000)
+                            raw_seed = user_row.get(f"Slot_{i}_Seed", 0)
+                            try:
+                                clean_seed = int(float(raw_seed))
+                            except:
+                                clean_seed = "-"
+
                             player_entry = {
-                                "Player": p_name,
+                                "Player": clean_p_name,
                                 "Team": user_row.get(f"Slot_{i}_Team", "N/A"),
-                                "Seed": user_row.get(f"Slot_{i}_Seed", "-")
+                                "Seed": clean_seed
                             }
 
-                            # DEFENSIVE LOOKUP: Prevents the KeyError
                             if not player_stats_df.empty and 'Player Name' in player_stats_df.columns:
-                                p_stats = player_stats_df[player_stats_df['Player Name'] == p_name]
+                                # USE STRIP HERE TOO: Ensure we match even with hidden spaces in stats
+                                # We compare clean_p_name to a version of the stats column with no spaces
+                                p_stats = player_stats_df[player_stats_df['Player Name'].str.strip() == clean_p_name]
                                 
                                 for col in stat_columns:
                                     if not p_stats.empty and col in p_stats.columns:
                                         val = p_stats.iloc[0][col]
+                                        # Force numeric conversion for the sum logic
                                         player_entry[col] = pd.to_numeric(val, errors='coerce') or 0
                                     else:
                                         player_entry[col] = 0
                             else:
-                                # If stats aren't loaded yet, default to 0
                                 for col in stat_columns:
                                     player_entry[col] = 0
                             
