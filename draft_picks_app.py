@@ -60,11 +60,11 @@ def load_all_app_data():
 seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df = load_all_app_data()
 
 # --- APP TABS ---
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 Player Stats", "📊 View Submissions & Stats"])
+tab1, tab2, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 View Submissions & Stats"])
 
 # 1. Set your deadline (Year, Month, Day, Hour, Minute)
 # Example: March 19, 2026, at 11:00 AM Central
-deadline = datetime.datetime(2026, 3, 1, 11, 0, 0)
+deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
 
 # 2. Define Timezones (Ensures the server time matches your time)
 central = pytz.timezone('US/Central')
@@ -201,33 +201,33 @@ with tab2:
     except Exception as e:
         st.error(f"Leaderboard Error: {e}")
 
-with tab3:
-    st.title("📊 Individual Player Points")
-    try:
-        df_stats = conn.read(worksheet="PlayerStats", ttl=0)
-        
-        if not df_stats.empty:
-            st.info(f"🕒 {str(df_stats.columns[0])}")
-            
-            actual_stats = df_stats.copy()
-            actual_stats.columns = actual_stats.iloc[0]
-            actual_stats = actual_stats[1:].reset_index(drop=True)
-            
-            # --- THE FIX: FORCE COLUMN NAMES & DATA TO WEB-SAFE TYPES ---
-            actual_stats.columns = [str(c) for c in actual_stats.columns]
-            
-            actual_stats = actual_stats.apply(pd.to_numeric, errors='ignore')
-            
-            if "Total" in actual_stats.columns:
-                actual_stats = actual_stats.sort_values(by="Total", ascending=False)
-            
-            # Final conversion to standard objects for JSON safety
-            actual_stats = actual_stats.astype(object)
-
-            st.dataframe(actual_stats, use_container_width=True, hide_index=True)
-            
-    except Exception as e:
-        st.error(f"Stats Error: {e}")
+##with tab3:
+##    st.title("📊 Individual Player Points")
+##    try:
+##        df_stats = conn.read(worksheet="PlayerStats", ttl=0)
+##        
+##        if not df_stats.empty:
+##            st.info(f"🕒 {str(df_stats.columns[0])}")
+##            
+##            actual_stats = df_stats.copy()
+##            actual_stats.columns = actual_stats.iloc[0]
+##            actual_stats = actual_stats[1:].reset_index(drop=True)
+##            
+##            # --- THE FIX: FORCE COLUMN NAMES & DATA TO WEB-SAFE TYPES ---
+##            actual_stats.columns = [str(c) for c in actual_stats.columns]
+##            
+##            actual_stats = actual_stats.apply(pd.to_numeric, errors='ignore')
+##            
+##            if "Total" in actual_stats.columns:
+##                actual_stats = actual_stats.sort_values(by="Total", ascending=False)
+##            
+##            # Final conversion to standard objects for JSON safety
+##            actual_stats = actual_stats.astype(object)
+##
+##            st.dataframe(actual_stats, use_container_width=True, hide_index=True)
+##            
+##    except Exception as e:
+##        st.error(f"Stats Error: {e}")
 
 with tab4:
     st.title("📝 Contestant Rosters & Live Stats")
