@@ -13,31 +13,36 @@ rosters_file = os.path.join(script_dir, "team_rosters.xlsx")
 st.set_page_config(page_title="2026 NCAA Men's Player Pool", page_icon="🏀", layout="wide")
 
 # --- DATA LOADING ---
-@st.cache_data(ttl=120)  # Refresh every 2 mins
+@st.cache_data(ttl=120)
 def load_all_app_data():
-    # 1. Local Files
     seeds_df = pd.read_csv(seeds_file)
     seeds_df['Seed'] = seeds_df['Seed'].astype(int)
     rosters_df = pd.read_excel(rosters_file)
     
-    # 2. Google Sheets via st.connection
     conn = st.connection("gsheets", type=GSheetsConnection)
     
     try:
-        # Load Picks (Sheet1)
+        # Load Picks (Sheet1) - Use ttl=0 to force fresh data when cache expires
         picks_df = conn.read(worksheet="Sheet1", ttl=0)
         picks_df.columns = picks_df.columns.str.strip()
         
         # Load Leaderboard
-        # Note: If your Leaderboard has a timestamp in Row 1, 
-        # you might need to adjust the header row in your conn.read
         leaderboard_df = conn.read(worksheet="Leaderboard", ttl=0)
         leaderboard_df.columns = leaderboard_df.columns.str.strip()
 
         # Load Player Stats
-        player_stats_df = conn.read(worksheet="PlayerStats", ttl=0)
-        player_stats_df.columns = player_stats_df.columns.str.strip()
+        ps_df = conn.read(worksheet="PlayerStats", ttl=0)
+        ps_df.columns = ps_df.columns.str.strip()
         
+        # NORMALIZATION: Ensure 'Player Name' exists for Tab 4 lookup
+        if 'Player Name' not in ps_df.columns:
+            if 'Player' in ps_df.columns:
+                ps_df = ps_df.rename(columns={'Player': 'Player Name'})
+            elif 'Name' in ps_df.columns:
+                ps_df = ps_df.rename(columns={'Name': 'Player Name'})
+        
+        player_stats_df = ps_df
+
     except Exception as e:
         st.error(f"Error reading Google Sheets: {e}")
         picks_df = pd.DataFrame()
@@ -46,8 +51,7 @@ def load_all_app_data():
 
     return seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df
 
-# --- EXECUTE LOADING ---
-# Unpack all 5 dataframes
+# Execute the load
 seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df = load_all_app_data()
 
 # --- APP TABS ---
@@ -222,11 +226,9 @@ with tab4:
     if now < deadline:
         st.info(f"🔒 Roster stats are hidden until the tournament begins ({deadline.strftime('%I:%M %p on %m/%d')}).")
     else:
-        # Check for 'Contestant' for the Men's sheet
+        # Match your header: 'Contestant'
         if not picks_df.empty and 'Contestant' in picks_df.columns:
             contestants = [c for c in picks_df['Contestant'].unique() if str(c).strip() != ""]
-            
-            # Note the unique 'key' for the Men's widget
             selected_user = st.selectbox("Select a Contestant:", ["All"] + contestants, key="mens_roster_select")
             display_list = contestants if selected_user == "All" else [selected_user]
 
@@ -239,7 +241,6 @@ with tab4:
                     
                     for i in range(1, 9):
                         p_name = user_row.get(f"Slot_{i}_Player")
-                        
                         if p_name and str(p_name).strip() != "":
                             player_entry = {
                                 "Player": p_name,
@@ -248,9 +249,8 @@ with tab4:
                             }
 
                             if not player_stats_df.empty:
-                                # Standard name used in your PlayerStats sheet
+                                # Look up by the normalized 'Player Name' column
                                 p_stats = player_stats_df[player_stats_df['Player Name'] == p_name]
-                                
                                 for col in stat_columns:
                                     if not p_stats.empty and col in p_stats.columns:
                                         val = p_stats.iloc[0][col]
@@ -263,21 +263,20 @@ with tab4:
                     if user_players:
                         df_display = pd.DataFrame(user_players)
                         
-                        # Summary row logic
+                        # Summary Row
                         summary_data = {"Player": "**ROSTER TOTALS**", "Team": "", "Seed": ""}
                         for col in stat_columns:
-                            summary_data[col] = df_display[col].sum() if col in df_display.columns else 0
+                            summary_data[col] = df_display[col].sum()
                         
                         df_with_total = pd.concat([df_display, pd.DataFrame([summary_data])], ignore_index=True)
 
-                        # Highlight styling
+                        # Styling
                         def style_roster(styler):
                             if 'Total' in df_with_total.columns:
                                 styler.background_gradient(subset=['Total'], cmap='YlGn')
                             styler.apply(lambda x: ['font-weight: bold' if x.name == len(df_with_total)-1 else '' for i in x], axis=1)
                             return styler
 
-                        # Filter for only active rounds
                         active_stats = [c for c in stat_columns if c in df_with_total.columns]
                         final_cols = ["Player", "Team", "Seed"] + active_stats
                         
@@ -287,6 +286,6 @@ with tab4:
                             hide_index=True
                         )
                     else:
-                        st.write("No picks recorded for this contestant.")
+                        st.write("No picks recorded.")
         else:
-            st.warning("No submission data found. Ensure the 'Contestant' column exists in your Men's Google Sheet.")
+            st.warning("Could not find the 'Contestant' column. Please check the headers.")
