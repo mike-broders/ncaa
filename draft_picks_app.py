@@ -12,6 +12,8 @@ rosters_file = os.path.join(script_dir, "team_rosters.xlsx")
 
 st.set_page_config(page_title="2026 NCAA Men's Player Pool", page_icon="🏀", layout="wide")
 
+conn = st.connection("gsheets", type=GSheetsConnection)
+
 # --- DATA LOADING ---
 @st.cache_data(ttl=120)
 def load_all_app_data():
@@ -154,27 +156,35 @@ with tab1:
 with tab2:
     st.title("🏆 Current Standings")
     try:
+        # 1. Read the sheet (ttl=0 ensures we see updates immediately on refresh)
         df_leaderboard = conn.read(worksheet="Leaderboard", ttl=0)
         
         if not df_leaderboard.empty:
-            # 1. Grab timestamp from the header string
-            st.info(f"🕒 {str(df_leaderboard.columns[0])}")
+            # 2. Extract timestamp from the very first header
+            timestamp_str = str(df_leaderboard.columns[0])
+            st.info(f"🕒 {timestamp_str}")
             
-            # 2. Re-align headers 
+            # 3. Fix Headers: Row 0 actually contains our "real" headers (Contestant, Total, etc.)
             actual_data = df_leaderboard.copy()
             actual_data.columns = actual_data.iloc[0]
             actual_data = actual_data[1:].reset_index(drop=True)
             
-            # --- THE FIX: FORCE COLUMN NAMES & DATA TO WEB-SAFE TYPES ---
-            # Force column names to be strings (fixes the JSON error)
-            actual_data.columns = [str(c) for c in actual_data.columns]
+            # 4. Clean Column Names (Force to string to avoid JSON errors)
+            actual_data.columns = [str(c).strip() for c in actual_data.columns]
             
-            # Convert numeric columns to float/int, then convert everything to object
-            # to ensure no hidden int64 types remain
+            # 5. Data Type Cleanup (Convert numbers, then to object for Streamlit safety)
             actual_data = actual_data.apply(pd.to_numeric, errors='ignore')
-            actual_data = actual_data.astype(object) 
-
-            st.dataframe(actual_data, use_container_width=True, hide_index=True)
+            
+            # 6. Sorting (Optional: ensures leader is at the top)
+            if 'Total' in actual_data.columns:
+                actual_data = actual_data.sort_values(by='Total', ascending=False)
+            
+            # 7. Final Display
+            st.dataframe(
+                actual_data.astype(object), 
+                use_container_width=True, 
+                hide_index=True
+            )
             
     except Exception as e:
         st.error(f"Leaderboard Error: {e}")
