@@ -22,7 +22,7 @@ def load_all_app_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     
     try:
-        # Load Picks (Sheet1) - Use ttl=0 to force fresh data when cache expires
+        # Load Picks
         picks_df = conn.read(worksheet="Sheet1", ttl=0)
         picks_df.columns = picks_df.columns.str.strip()
         
@@ -31,18 +31,9 @@ def load_all_app_data():
         leaderboard_df.columns = leaderboard_df.columns.str.strip()
 
         # Load Player Stats
-        ps_df = conn.read(worksheet="PlayerStats", ttl=0)
-        ps_df.columns = ps_df.columns.str.strip()
+        player_stats_df = conn.read(worksheet="PlayerStats", ttl=0)
+        player_stats_df.columns = player_stats_df.columns.str.strip()
         
-        # NORMALIZATION: Ensure 'Player Name' exists for Tab 4 lookup
-        if 'Player Name' not in ps_df.columns:
-            if 'Player' in ps_df.columns:
-                ps_df = ps_df.rename(columns={'Player': 'Player Name'})
-            elif 'Name' in ps_df.columns:
-                ps_df = ps_df.rename(columns={'Name': 'Player Name'})
-        
-        player_stats_df = ps_df
-
     except Exception as e:
         st.error(f"Error reading Google Sheets: {e}")
         picks_df = pd.DataFrame()
@@ -241,6 +232,7 @@ with tab4:
                     
                     for i in range(1, 9):
                         p_name = user_row.get(f"Slot_{i}_Player")
+                        
                         if p_name and str(p_name).strip() != "":
                             player_entry = {
                                 "Player": p_name,
@@ -248,15 +240,20 @@ with tab4:
                                 "Seed": user_row.get(f"Slot_{i}_Seed", "-")
                             }
 
-                            if not player_stats_df.empty:
-                                # Look up by the normalized 'Player Name' column
+                            # DEFENSIVE LOOKUP: Prevents the KeyError
+                            if not player_stats_df.empty and 'Player Name' in player_stats_df.columns:
                                 p_stats = player_stats_df[player_stats_df['Player Name'] == p_name]
+                                
                                 for col in stat_columns:
                                     if not p_stats.empty and col in p_stats.columns:
                                         val = p_stats.iloc[0][col]
                                         player_entry[col] = pd.to_numeric(val, errors='coerce') or 0
                                     else:
                                         player_entry[col] = 0
+                            else:
+                                # If stats aren't loaded yet, default to 0
+                                for col in stat_columns:
+                                    player_entry[col] = 0
                             
                             user_players.append(player_entry)
                     
