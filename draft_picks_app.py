@@ -244,33 +244,41 @@ with tab4:
                         p_name = user_row.get(f"Slot_{i}_Player")
                         
                         if p_name and str(p_name).strip() != "":
-                            # Clean the name for lookup
-                            clean_p_name = str(p_name).strip()
+                            # 1. Clean the name for the table display
+                            display_name = str(p_name).strip()
                             
-                            # Clean the seed (force to int then string to remove .000000)
-                            raw_seed = user_row.get(f"Slot_{i}_Seed", 0)
+                            # 2. Fix the Seed (Clean integer)
                             try:
-                                clean_seed = int(float(raw_seed))
+                                clean_seed = int(float(user_row.get(f"Slot_{i}_Seed", 0)))
                             except:
                                 clean_seed = "-"
 
                             player_entry = {
-                                "Player": clean_p_name,
+                                "Player": display_name,
                                 "Team": user_row.get(f"Slot_{i}_Team", "N/A"),
                                 "Seed": clean_seed
                             }
 
                             if not player_stats_df.empty and 'Player Name' in player_stats_df.columns:
-                                # USE STRIP HERE TOO: Ensure we match even with hidden spaces in stats
-                                # We compare clean_p_name to a version of the stats column with no spaces
-                                p_stats = player_stats_df[player_stats_df['Player Name'].str.strip() == clean_p_name]
+                                # 3. THE HEAVY DUTY LOOKUP
+                                # We lowercase both sides and strip them to ensure "walter clayton jr." == "Walter Clayton Jr."
+                                search_name = display_name.lower().strip()
                                 
-                                for col in stat_columns:
-                                    if not p_stats.empty and col in p_stats.columns:
-                                        val = p_stats.iloc[0][col]
-                                        # Force numeric conversion for the sum logic
-                                        player_entry[col] = pd.to_numeric(val, errors='coerce') or 0
-                                    else:
+                                # Create a temporary series for matching
+                                match_mask = player_stats_df['Player Name'].astype(str).str.lower().str.strip() == search_name
+                                p_stats = player_stats_df[match_mask]
+                                
+                                if not p_stats.empty:
+                                    for col in stat_columns:
+                                        if col in p_stats.columns:
+                                            # Ensure we handle empty strings or weird characters in the stats
+                                            val = p_stats.iloc[0][col]
+                                            player_entry[col] = pd.to_numeric(val, errors='coerce') or 0
+                                        else:
+                                            player_entry[col] = 0
+                                else:
+                                    # DEBUG: If no match is found, we'll mark the points as 0
+                                    for col in stat_columns:
                                         player_entry[col] = 0
                             else:
                                 for col in stat_columns:
