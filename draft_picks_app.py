@@ -56,33 +56,67 @@ def load_all_app_data():
 
     return seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df
 
+### --- LEADERBOARD STYLING FUNCTION ---
+##def style_leaderboard(df):
+##    styles = pd.DataFrame('', index=df.index, columns=df.columns)
+##    
+##    # Pre-clean the Player Stats names for faster matching
+##    stats_names = player_stats_df['Player Name'].str.strip().str.lower().tolist()
+##    stats_statuses = player_stats_df['Status'].str.strip().str.lower().tolist()
+##    status_map = dict(zip(stats_names, stats_statuses))
+##
+##    for i, row in df.iterrows():
+##        contestant_name = str(row.get('Contestant', '')).strip()
+##        user_picks = picks_df[picks_df['Contestant'] == contestant_name]
+##        
+##        if not user_picks.empty:
+##            # Get the 8 player names for THIS contestant
+##            p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
+##            
+##            # Check the status for these 8 specific players
+##            user_player_statuses = [status_map.get(name, 'eliminated') for name in p_names if name]
+##            
+##            # If ANY player is active or advanced, the contestant is still "alive"
+##            is_alive = any(s in ['active', 'advanced'] for s in user_player_statuses)
+##            
+##            if is_alive:
+##                bg = 'rgba(0, 255, 0, 0.05)' # Green
+##            else:
+##                bg = 'rgba(255, 0, 0, 0.08)'  # Red
+##            
+##            styles.iloc[i, :] = f'background-color: {bg}'
+##            
+##    return styles
+
 # --- LEADERBOARD STYLING FUNCTION ---
 def style_leaderboard(df):
     styles = pd.DataFrame('', index=df.index, columns=df.columns)
     
-    # Pre-clean the Player Stats names for faster matching
+    # Pre-clean the Player Stats names and statuses
     stats_names = player_stats_df['Player Name'].str.strip().str.lower().tolist()
     stats_statuses = player_stats_df['Status'].str.strip().str.lower().tolist()
     status_map = dict(zip(stats_names, stats_statuses))
 
     for i, row in df.iterrows():
+        # 1. Strip both sides of the comparison to ensure a match
         contestant_name = str(row.get('Contestant', '')).strip()
-        user_picks = picks_df[picks_df['Contestant'] == contestant_name]
+        user_picks = picks_df[picks_df['Contestant'].str.strip() == contestant_name]
         
         if not user_picks.empty:
             # Get the 8 player names for THIS contestant
             p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
             
-            # Check the status for these 8 specific players
+            # Check the status for these players
             user_player_statuses = [status_map.get(name, 'eliminated') for name in p_names if name]
             
-            # If ANY player is active or advanced, the contestant is still "alive"
-            is_alive = any(s in ['active', 'advanced'] for s in user_player_statuses)
+            # 2. UPDATE: Added 'pending' to the check. 
+            # This ensures they stay Green/Blue instead of turning Red before they play.
+            is_alive = any(s in ['active', 'advanced', 'pending'] for s in user_player_statuses)
             
             if is_alive:
-                bg = 'rgba(0, 255, 0, 0.05)' # Green
+                bg = 'rgba(0, 255, 0, 0.05)' # Green/Active shading
             else:
-                bg = 'rgba(255, 0, 0, 0.08)'  # Red
+                bg = 'rgba(255, 0, 0, 0.08)'  # Red/Eliminated shading
             
             styles.iloc[i, :] = f'background-color: {bg}'
             
