@@ -125,6 +125,15 @@ def style_leaderboard(df):
 # Execute the load
 seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df = load_all_app_data()
 
+# Set your deadline (Year, Month, Day, Hour, Minute)
+# Example: March 19, 2026, at 11:00 AM Central
+deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
+
+# Define Timezones (Ensures the server time matches your time)
+central = pytz.timezone('US/Central')
+deadline = central.localize(deadline)
+now = datetime.datetime.now(central)
+
 # --- GLOBAL SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ App Controls")
@@ -144,14 +153,14 @@ with st.sidebar:
 # --- APP TABS ---
 tab1, tab2, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 View Submissions & Stats"])
 
-# Set your deadline (Year, Month, Day, Hour, Minute)
-# Example: March 19, 2026, at 11:00 AM Central
-deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
-
-# Define Timezones (Ensures the server time matches your time)
-central = pytz.timezone('US/Central')
-deadline = central.localize(deadline)
-now = datetime.datetime.now(central)
+### Set your deadline (Year, Month, Day, Hour, Minute)
+### Example: March 19, 2026, at 11:00 AM Central
+##deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
+##
+### Define Timezones (Ensures the server time matches your time)
+##central = pytz.timezone('US/Central')
+##deadline = central.localize(deadline)
+##now = datetime.datetime.now(central)
 
 with tab1:
     if now > deadline:
