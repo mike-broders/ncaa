@@ -249,11 +249,20 @@ with tab2:
 
 with tab4:
     st.info(f"Press Refresh Data button in the sidebar to the left to grab most current available data.")
-    st.title("📝 Contestant Rosters & Live Stats")
+    st.title("📝 Contestant Rosters & Stats")
     
     if now < deadline:
         st.info(f"🔒 Roster stats are hidden until the tournament begins ({deadline.strftime('%I:%M %p on %m/%d')}).")
     else:
+        try:
+            # We read with ttl=0 to ensure we get the fresh timestamp from the header
+            df_player_stats = conn.read(worksheet="PlayerStats", ttl=0)
+            if not df_player_stats.empty:
+                timestamp_str = str(df_player_stats.columns[0])
+                st.info(f"🕒 {timestamp_str}")
+        except Exception:
+            pass # Silently skip if the sheet is temporarily unavailable
+        
         if not picks_df.empty and 'Contestant' in picks_df.columns:
             contestants = [c for c in picks_df['Contestant'].unique() if str(c).strip() != ""]
             selected_user = st.selectbox("Select a Contestant:", ["All"] + contestants, key="mens_roster_select")
