@@ -107,7 +107,7 @@ def style_leaderboard(df):
             p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
             
             # Check the status for these players
-            user_player_statuses = [status_map.get(name, 'eliminated') for name in p_names if name]
+            user_player_statuses = [status_map.get(name, 'active') for name in p_names if name]
             
             # 2. UPDATE: Added 'active' to the check. 
             # This ensures they stay Green/Blue instead of turning Red before they play.
