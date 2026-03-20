@@ -109,9 +109,9 @@ def style_leaderboard(df):
             # Check the status for these players
             user_player_statuses = [status_map.get(name, 'eliminated') for name in p_names if name]
             
-            # 2. UPDATE: Added 'pending' to the check. 
+            # 2. UPDATE: Added 'active' to the check. 
             # This ensures they stay Green/Blue instead of turning Red before they play.
-            is_alive = any(s in ['active', 'advanced', 'pending'] for s in user_player_statuses)
+            is_alive = any(s in ['active', 'advanced'] for s in user_player_statuses)
             
             if is_alive:
                 bg = 'rgba(0, 255, 0, 0.05)' # Green/Active shading
