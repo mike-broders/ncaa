@@ -60,38 +60,6 @@ def load_all_app_data():
 
     return seeds_df, rosters_df, picks_df, leaderboard_df, player_stats_df
 
-### --- LEADERBOARD STYLING FUNCTION ---
-##def style_leaderboard(df):
-##    styles = pd.DataFrame('', index=df.index, columns=df.columns)
-##    
-##    # Pre-clean the Player Stats names for faster matching
-##    stats_names = player_stats_df['Player Name'].str.strip().str.lower().tolist()
-##    stats_statuses = player_stats_df['Status'].str.strip().str.lower().tolist()
-##    status_map = dict(zip(stats_names, stats_statuses))
-##
-##    for i, row in df.iterrows():
-##        contestant_name = str(row.get('Contestant', '')).strip()
-##        user_picks = picks_df[picks_df['Contestant'] == contestant_name]
-##        
-##        if not user_picks.empty:
-##            # Get the 8 player names for THIS contestant
-##            p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
-##            
-##            # Check the status for these 8 specific players
-##            user_player_statuses = [status_map.get(name, 'eliminated') for name in p_names if name]
-##            
-##            # If ANY player is active or advanced, the contestant is still "alive"
-##            is_alive = any(s in ['active', 'advanced'] for s in user_player_statuses)
-##            
-##            if is_alive:
-##                bg = 'rgba(0, 255, 0, 0.05)' # Green
-##            else:
-##                bg = 'rgba(255, 0, 0, 0.08)'  # Red
-##            
-##            styles.iloc[i, :] = f'background-color: {bg}'
-##            
-##    return styles
-
 # --- LEADERBOARD STYLING FUNCTION ---
 def style_leaderboard(df):
     styles = pd.DataFrame('', index=df.index, columns=df.columns)
@@ -140,11 +108,6 @@ with st.sidebar:
     
     st.divider() # Adds a nice visual line
     
-    # Optional: Display the last time data was updated
-    # (Only works if you're not using 'now' for the tournament deadline)
-    # import datetime
-    # st.caption(f"Last checked: {datetime.datetime.now().strftime('%I:%M:%S %p')}")
-
     st.caption(f"Last checked: {now.strftime('%I:%M:%S %p')} CT")
 
 # --- APP TABS ---
@@ -154,10 +117,7 @@ tab1, tab2, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊
 # Example: March 19, 2026, at 11:00 AM Central
 deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
 
-# Define Timezones (Ensures the server time matches your time)
-#central = pytz.timezone('US/Central')
 deadline = central.localize(deadline)
-#now = datetime.datetime.now(central)
  
 with tab1:
     if now > deadline:
@@ -286,34 +246,6 @@ with tab2:
             
     except Exception as e:
         st.error(f"Leaderboard Error: {e}")
-
-##with tab3:
-##    st.title("📊 Individual Player Points")
-##    try:
-##        df_stats = conn.read(worksheet="PlayerStats", ttl=0)
-##        
-##        if not df_stats.empty:
-##            st.info(f"🕒 {str(df_stats.columns[0])}")
-##            
-##            actual_stats = df_stats.copy()
-##            actual_stats.columns = actual_stats.iloc[0]
-##            actual_stats = actual_stats[1:].reset_index(drop=True)
-##            
-##            # --- THE FIX: FORCE COLUMN NAMES & DATA TO WEB-SAFE TYPES ---
-##            actual_stats.columns = [str(c) for c in actual_stats.columns]
-##            
-##            actual_stats = actual_stats.apply(pd.to_numeric, errors='ignore')
-##            
-##            if "Total" in actual_stats.columns:
-##                actual_stats = actual_stats.sort_values(by="Total", ascending=False)
-##            
-##            # Final conversion to standard objects for JSON safety
-##            actual_stats = actual_stats.astype(object)
-##
-##            st.dataframe(actual_stats, use_container_width=True, hide_index=True)
-##            
-##    except Exception as e:
-##        st.error(f"Stats Error: {e}")
 
 with tab4:
     st.info(f"Press Refresh Data button in the sidebar to the left to grab most current available data.")
