@@ -5,6 +5,10 @@ import os
 import datetime
 import pytz
 
+# Define Timezones (Ensures the server time matches your time)
+central = pytz.timezone('US/Central')
+now = datetime.datetime.now(central)
+
 # --- PATH SETUP ---
 script_dir = os.path.dirname(os.path.abspath(__file__))
 seeds_file = os.path.join(script_dir, "team_seeds.csv")
@@ -138,8 +142,10 @@ with st.sidebar:
     
     # Optional: Display the last time data was updated
     # (Only works if you're not using 'now' for the tournament deadline)
-    import datetime
-    st.caption(f"Last checked: {datetime.datetime.now().strftime('%I:%M:%S %p')}")
+    # import datetime
+    # st.caption(f"Last checked: {datetime.datetime.now().strftime('%I:%M:%S %p')}")
+
+    st.caption(f"Last checked: {now.strftime('%I:%M:%S %p')} CT")
 
 # --- APP TABS ---
 tab1, tab2, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊 View Submissions & Stats"])
@@ -149,10 +155,10 @@ tab1, tab2, tab4 = st.tabs(["📝 Enter Player Picks", "🏆 Leaderboard", "📊
 deadline = datetime.datetime(2026, 3, 19, 11, 0, 0)
 
 # Define Timezones (Ensures the server time matches your time)
-central = pytz.timezone('US/Central')
+#central = pytz.timezone('US/Central')
 deadline = central.localize(deadline)
-now = datetime.datetime.now(central)
-
+#now = datetime.datetime.now(central)
+ 
 with tab1:
     if now > deadline:
         # --- THE LOCKDOWN MESSAGE ---
