@@ -64,13 +64,13 @@ def load_all_app_data():
 def style_leaderboard(df):
     styles = pd.DataFrame('', index=df.index, columns=df.columns)
     
-    # Pre-clean the Player Stats names and statuses
-    stats_names = player_stats_df['Player Name'].str.strip().str.lower().tolist()
-    stats_statuses = player_stats_df['Status'].str.strip().str.lower().tolist()
-    status_map = dict(zip(stats_names, stats_statuses))
+    # 1. Create a quick lookup for player statuses
+    status_map = dict(zip(
+        player_stats_df['Player Name'].str.strip().str.lower(), 
+        player_stats_df['Status'].str.strip().str.lower()
+    ))
 
     for i, row in df.iterrows():
-        # 1. Strip both sides of the comparison to ensure a match
         contestant_name = str(row.get('Contestant', '')).strip()
         user_picks = picks_df[picks_df['Contestant'].str.strip() == contestant_name]
         
@@ -78,19 +78,23 @@ def style_leaderboard(df):
             # Get the 8 player names for THIS contestant
             p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
             
-            # Check the status for these players
+            # Get the statuses for these 8 players
             user_player_statuses = [status_map.get(name, 'active') for name in p_names if name]
             
-            # 2. UPDATE: Added 'active' to the check. 
-            # This ensures they stay Green/Blue instead of turning Red before they play.
-            is_alive = any(s in ['active', 'advanced'] for s in user_player_statuses)
+            # --- TIERED COLOR LOGIC ---
+            # Priority 1: Any "advanced" or "advancing" player? -> Solid Green
+            if any(s in ['advanced', 'advancing'] for s in user_player_statuses):
+                bg = '#d4edda' # Light Green
             
-            if is_alive:
-                bg = 'rgba(0, 255, 0, 0.05)' # Green/Active shading
+            # Priority 2: Any "active" players left? -> Soft Blue
+            elif any(s == 'active' for s in user_player_statuses):
+                bg = '#d1ecf1' # Soft Blue
+            
+            # Priority 3: Everyone is "eliminated" -> Light Red
             else:
-                bg = 'rgba(255, 0, 0, 0.08)'  # Red/Eliminated shading
+                bg = '#f8d7da' # Light Red
             
-            styles.iloc[i, :] = f'background-color: {bg}'
+            styles.iloc[i, :] = f'background-color: {bg}; color: black;' # Added black text for readability
             
     return styles
 
@@ -328,23 +332,28 @@ with tab4:
                         def style_roster_internal(df):
                             styles = pd.DataFrame('', index=df.index, columns=df.columns)
                             for idx, row in df.iterrows():
-                                # Style the "TOTALS" row differently
+                                # 1. Style the "TOTALS" row (Bold + Border)
                                 if idx == len(df) - 1:
-                                    styles.iloc[idx, :] = 'font-weight: bold; border-top: 2px solid #888;'
+                                    styles.iloc[idx, :] = 'font-weight: bold; border-top: 2px solid #888; background-color: #f0f2f6;'
                                     continue
                                 
-                                status = str(row.get('Status', '')).lower()
-                                if 'eliminated' in status:
-                                    bg = 'rgba(255, 0, 0, 0.15)'
-                                elif 'advanced' in status:
-                                    bg = 'rgba(0, 255, 0, 0.15)'
+                                # 2. Extract and Normalize Status
+                                status = str(row.get('Status', '')).lower().strip()
+                                
+                                # 3. TIERED HEX COLOR LOGIC
+                                if any(s in status for s in ['advanced', 'advancing']):
+                                    bg = '#d4edda' # Clean Green
                                 elif 'active' in status:
-                                    bg = 'rgba(0, 0, 255, 0.08)'
+                                    bg = '#d1ecf1' # Soft Blue
+                                elif 'eliminated' in status:
+                                    bg = '#f8d7da' # Light Red
                                 else:
                                     bg = ''
                                 
+                                # 4. Apply Background and ensure text is readable (black)
                                 if bg:
-                                    styles.iloc[idx, :] = f'background-color: {bg}'
+                                    styles.iloc[idx, :] = f'background-color: {bg}; color: #000000;'
+                                    
                             return styles
 
                         # DISPLAY: Keep 'Status' in the dataframe but hide it from the UI
