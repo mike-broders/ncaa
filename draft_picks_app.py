@@ -64,7 +64,6 @@ def load_all_app_data():
 def style_leaderboard(df):
     styles = pd.DataFrame('', index=df.index, columns=df.columns)
     
-    # 1. Create a quick lookup for player statuses
     status_map = dict(zip(
         player_stats_df['Player Name'].str.strip().str.lower(), 
         player_stats_df['Status'].str.strip().str.lower()
@@ -75,26 +74,19 @@ def style_leaderboard(df):
         user_picks = picks_df[picks_df['Contestant'].str.strip() == contestant_name]
         
         if not user_picks.empty:
-            # Get the 8 player names for THIS contestant
             p_names = [str(user_picks.iloc[0].get(f"Slot_{j}_Player", "")).strip().lower() for j in range(1, 9)]
-            
-            # Get the statuses for these 8 players
             user_player_statuses = [status_map.get(name, 'active') for name in p_names if name]
             
-            # --- TIERED COLOR LOGIC ---
-            # Priority 1: Any "advanced" or "advancing" player? -> Solid Green
+            # --- DEEP COLOR LOGIC ---
             if any(s in ['advanced', 'advancing'] for s in user_player_statuses):
-                bg = '#d4edda' # Light Green
-            
-            # Priority 2: Any "active" players left? -> Soft Blue
+                bg = '#14331a' # Deep Forest Green (Matches your screenshot)
             elif any(s == 'active' for s in user_player_statuses):
-                bg = '#d1ecf1' # Soft Blue
-            
-            # Priority 3: Everyone is "eliminated" -> Light Red
+                bg = '#0e2a36' # Deep Navy/Teal
             else:
-                bg = '#f8d7da' # Light Red
+                bg = '#331414' # Deep Maroon/Red (Matches your screenshot)
             
-            styles.iloc[i, :] = f'background-color: {bg}; color: black;' # Added black text for readability
+            # Use white text to pop against the dark backgrounds
+            styles.iloc[i, :] = f'background-color: {bg}; color: #ffffff;' 
             
     return styles
 
@@ -332,27 +324,25 @@ with tab4:
                         def style_roster_internal(df):
                             styles = pd.DataFrame('', index=df.index, columns=df.columns)
                             for idx, row in df.iterrows():
-                                # 1. Style the "TOTALS" row (Bold + Border)
+                                # Style the "TOTALS" row
                                 if idx == len(df) - 1:
-                                    styles.iloc[idx, :] = 'font-weight: bold; border-top: 2px solid #888; background-color: #f0f2f6;'
+                                    styles.iloc[idx, :] = 'font-weight: bold; border-top: 1px solid #444; background-color: #1a1a1a;'
                                     continue
                                 
-                                # 2. Extract and Normalize Status
                                 status = str(row.get('Status', '')).lower().strip()
                                 
-                                # 3. TIERED HEX COLOR LOGIC
+                                # --- DEEP COLOR LOGIC ---
                                 if any(s in status for s in ['advanced', 'advancing']):
-                                    bg = '#d4edda' # Clean Green
+                                    bg = '#14331a' # Matches the "Brayden Burries" green in your pic
                                 elif 'active' in status:
-                                    bg = '#d1ecf1' # Soft Blue
+                                    bg = '#0e2a36' 
                                 elif 'eliminated' in status:
-                                    bg = '#f8d7da' # Light Red
+                                    bg = '#331414' # Matches the "AJ Dybantsa" red in your pic
                                 else:
                                     bg = ''
                                 
-                                # 4. Apply Background and ensure text is readable (black)
                                 if bg:
-                                    styles.iloc[idx, :] = f'background-color: {bg}; color: #000000;'
+                                    styles.iloc[idx, :] = f'background-color: {bg}; color: #ffffff;'
                                     
                             return styles
 
