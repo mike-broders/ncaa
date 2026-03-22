@@ -255,7 +255,7 @@ with tab4:
             df_player_stats = conn.read(worksheet="PlayerStats", ttl=0)
             if not df_player_stats.empty:
                 timestamp_str = str(df_player_stats.columns[0])
-                st.info(f"🕒 {timestamp_str} using most recent data from collegebasketballdata.com API")
+                st.info(f"🕒 {timestamp_str} using live data from ESPN API")
         except Exception:
             pass # Silently skip if the sheet is temporarily unavailable
         
